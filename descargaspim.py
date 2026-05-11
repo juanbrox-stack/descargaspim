@@ -431,21 +431,29 @@ with tab1:
     )
     if uploaded:
         try:
-            df_in = pd.read_excel(uploaded)
-            col_sku = next((c for c in df_in.columns if 'sku' in c.lower()), None)
-            if col_sku:
-                skus_from_excel = df_in[col_sku].dropna().astype(str).tolist()
+            import openpyxl
+            wb = openpyxl.load_workbook(uploaded, read_only=True, data_only=True)
+            ws = wb.active
+            headers = [str(cell.value).strip() if cell.value else "" for cell in next(ws.iter_rows(min_row=1, max_row=1))]
+            col_idx = next((i for i, h in enumerate(headers) if "sku" in h.lower()), None)
+            if col_idx is None:
+                st.error("No se encontró una columna con 'sku' en el nombre.")
+            else:
+                skus_from_excel = []
+                for row in ws.iter_rows(min_row=2, values_only=True):
+                    val = row[col_idx]
+                    if val is not None and str(val).strip():
+                        skus_from_excel.append(str(val).strip())
+                wb.close()
                 st.markdown(f"""
                 <div class="stat-row">
                     <div class="stat-box"><span class="num">{len(skus_from_excel)}</span><span class="lbl">SKUs cargados</span></div>
-                    <div class="stat-box"><span class="num">{len(df_in.columns)}</span><span class="lbl">Columnas en Excel</span></div>
+                    <div class="stat-box"><span class="num">{len(headers)}</span><span class="lbl">Columnas en Excel</span></div>
                 </div>
                 """, unsafe_allow_html=True)
-                with st.expander("Vista previa", expanded=False):
-                    st.dataframe(df_in.head(10), use_container_width=True)
+                with st.expander("Vista previa SKUs", expanded=False):
+                    st.write(skus_from_excel[:10])
                 skus_finales = skus_from_excel
-            else:
-                st.error("No se encontró una columna con 'sku' en el nombre.")
         except Exception as e:
             st.error(f"Error leyendo el archivo: {e}")
 
@@ -514,7 +522,13 @@ if iniciar and skus_finales:
             st.dataframe(df_resultado.head(20), use_container_width=True)
 
         buffer = io.BytesIO()
-        df_resultado.to_excel(buffer, index=False, engine="openpyxl")
+        import openpyxl
+        wb_out = openpyxl.Workbook()
+        ws_out = wb_out.active
+        ws_out.append(list(df_resultado.columns))
+        for row in df_resultado.itertuples(index=False):
+            ws_out.append([str(v) if v is not None else "" for v in row])
+        wb_out.save(buffer)
         buffer.seek(0)
 
         st.download_button(
