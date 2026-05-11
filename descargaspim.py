@@ -1,11 +1,4 @@
 import streamlit as st
-
-# Instalar openpyxl en tiempo de ejecución si el entorno no lo tiene
-import importlib.util
-if importlib.util.find_spec("openpyxl") is None:
-    import subprocess, sys
-    subprocess.run([sys.executable, "-m", "pip", "install", "openpyxl"], check=False)
-import openpyxl
 import requests
 import pandas as pd
 import time
@@ -173,6 +166,8 @@ st.set_page_config(page_title="Plytix Downloader · Cecotec", page_icon="⬇️"
 
 if "skus_finales" not in st.session_state:
     st.session_state.skus_finales = []
+if "campos" not in st.session_state:
+    st.session_state.campos = [c for c in CAMPOS_DESEADOS if c in TODOS_LOS_CAMPOS]
 
 # ── CSS ──────────────────────────────────────────────────────
 st.markdown("""
@@ -382,26 +377,19 @@ with col_izq:
 
 with col_der:
     st.markdown('<div class="section-dark"><h3>📋 Paso 2 — Campos a descargar</h3>', unsafe_allow_html=True)
-    # Botón limpiar campos
-    if "limpiar_campos" not in st.session_state:
-        st.session_state.limpiar_campos = False
-
     col_ms, col_clear = st.columns([5, 1])
+
     with col_clear:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("🗑️ Limpiar", key="btn_limpiar", help="Borrar todos los campos seleccionados"):
-            st.session_state.limpiar_campos = True
+            st.session_state.campos = []
             st.rerun()
-
-    default_campos = [] if st.session_state.limpiar_campos else [c for c in CAMPOS_DESEADOS if c in TODOS_LOS_CAMPOS]
-    if st.session_state.limpiar_campos:
-        st.session_state.limpiar_campos = False
 
     with col_ms:
         campos_seleccionados = st.multiselect(
             label=f"Selecciona atributos ({len(TODOS_LOS_CAMPOS)} disponibles)",
             options=TODOS_LOS_CAMPOS,
-            default=default_campos,
+            default=st.session_state.campos,
             help="Escribe para buscar un campo concreto",
             key="campos"
         )
