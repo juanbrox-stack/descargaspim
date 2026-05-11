@@ -198,8 +198,12 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; background: #0a0a
 label { color: #aaaaaa !important; font-size: 0.82rem !important; font-weight: 600 !important; }
 [data-testid="stFileUploader"] { background: #111 !important; border: 2px dashed #333 !important; border-radius: 12px !important; }
 [data-baseweb="select"] > div { background: #1a1a1a !important; border-color: #333 !important; color: #fff !important; }
+[data-baseweb="select"] input { background: transparent !important; color: #ffffff !important; caret-color: #22d3c5 !important; font-size: 0.9rem !important; }
+[data-baseweb="select"] input::placeholder { color: #888 !important; }
 [data-baseweb="tag"] { background: #22d3c5 !important; color: #000 !important; font-weight: 700 !important; }
 [data-baseweb="menu"] { background: #1a1a1a !important; border: 1px solid #333 !important; }
+[data-baseweb="menu"] li { color: #ffffff !important; }
+[data-baseweb="menu"] li:hover { background: #2a2a2a !important; color: #22d3c5 !important; }
 .stTabs [data-baseweb="tab-list"] { background: #111; border-radius: 10px; padding: 4px; gap: 4px; border: 1px solid #222; }
 .stTabs [data-baseweb="tab"] { background: transparent !important; color: #888 !important; border-radius: 7px !important; font-weight: 600 !important; font-size: 0.85rem !important; }
 .stTabs [aria-selected="true"] { background: #22d3c5 !important; color: #000 !important; }
@@ -377,22 +381,28 @@ with col_izq:
 
 with col_der:
     st.markdown('<div class="section-dark"><h3>📋 Paso 2 — Campos a descargar</h3>', unsafe_allow_html=True)
-    col_ms, col_clear = st.columns([5, 1])
-
-    with col_clear:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("🗑️ Limpiar", key="btn_limpiar", help="Borrar todos los campos seleccionados"):
+    # Botones acción rápida
+    col_all, col_none, col_default, col_spacer = st.columns([1, 1, 1, 3])
+    with col_all:
+        if st.button("☑️ Todos", key="btn_todos", help="Seleccionar todos los campos"):
+            st.session_state.campos = TODOS_LOS_CAMPOS[:]
+            st.rerun()
+    with col_none:
+        if st.button("🗑️ Limpiar", key="btn_limpiar", help="Borrar todos los campos"):
             st.session_state.campos = []
             st.rerun()
+    with col_default:
+        if st.button("↩️ Defecto", key="btn_default", help="Restaurar campos por defecto"):
+            st.session_state.campos = [c for c in CAMPOS_DESEADOS if c in TODOS_LOS_CAMPOS]
+            st.rerun()
 
-    with col_ms:
-        campos_seleccionados = st.multiselect(
-            label=f"Selecciona atributos ({len(TODOS_LOS_CAMPOS)} disponibles)",
-            options=TODOS_LOS_CAMPOS,
-            default=st.session_state.campos,
-            help="Escribe para buscar un campo concreto",
-            key="campos"
-        )
+    campos_seleccionados = st.multiselect(
+        label=f"Selecciona atributos ({len(TODOS_LOS_CAMPOS)} disponibles — escribe para buscar)",
+        options=TODOS_LOS_CAMPOS,
+        default=st.session_state.campos,
+        help="Escribe para filtrar. Usa los botones de arriba para selección rápida.",
+        key="campos"
+    )
 
     if campos_seleccionados:
         st.markdown(f"""
