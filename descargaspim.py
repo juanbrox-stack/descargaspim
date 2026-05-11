@@ -17,7 +17,7 @@ CAMPOS_DESEADOS = [
     "descripcion_corta_del_producto",
     "descripcion_larga_del_producto",
     "ean_13",
-    "ean_14",
+    "referencia en web",
     "familia",
     "subfamilia",
     "foto_master_producto_main_image_1000x1000_png_01",
@@ -67,7 +67,7 @@ html, body, [class*="css"] {
     font-family: 'DM Sans', sans-serif;
 }
 
-/* Background */
+/* Background principal oscuro */
 .stApp {
     background: #0d0d0d;
     color: #f0f0f0;
@@ -87,37 +87,16 @@ h1, h2, h3 {
     margin: -1rem -1rem 2rem -1rem;
     border-radius: 0 0 12px 12px;
 }
-.header-strip h1 {
-    font-size: 2rem;
-    letter-spacing: -1px;
-    margin: 0;
-}
-.header-strip p {
-    color: #aaa;
-    margin: 0.3rem 0 0;
-    font-size: 0.9rem;
-}
-
-/* Cards */
-.card {
-    background: #1a1a1a;
-    border: 1px solid #2a2a2a;
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-}
+.header-strip h1 { font-size: 2rem; letter-spacing: -1px; margin: 0; }
+.header-strip p  { color: #aaa; margin: 0.3rem 0 0; font-size: 0.9rem; }
 
 /* Accent */
 .accent { color: #e94560; }
 
 /* Stat boxes */
-.stat-row {
-    display: flex;
-    gap: 1rem;
-    margin: 1rem 0;
-}
+.stat-row { display: flex; gap: 1rem; margin: 1rem 0; }
 .stat-box {
-    background: #111;
+    background: #1a1a1a;
     border: 1px solid #333;
     border-radius: 8px;
     padding: 0.8rem 1.2rem;
@@ -154,14 +133,60 @@ h1, h2, h3 {
     transform: translateY(-1px) !important;
 }
 
-/* Inputs */
+/* ── SIDEBAR: fondo blanco para que los inputs sean legibles ── */
+section[data-testid="stSidebar"] {
+    background: #ffffff !important;
+    border-right: 2px solid #e94560 !important;
+}
+section[data-testid="stSidebar"] * {
+    color: #111111 !important;
+}
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3 {
+    color: #111111 !important;
+    font-family: 'Space Mono', monospace !important;
+}
+section[data-testid="stSidebar"] small {
+    color: #555 !important;
+}
+/* Inputs dentro del sidebar */
+section[data-testid="stSidebar"] input,
+section[data-testid="stSidebar"] textarea {
+    background: #f5f5f5 !important;
+    color: #111 !important;
+    border: 1px solid #ccc !important;
+    border-radius: 6px !important;
+}
+section[data-testid="stSidebar"] input:focus,
+section[data-testid="stSidebar"] textarea:focus {
+    border-color: #e94560 !important;
+    box-shadow: 0 0 0 2px rgba(233,69,96,0.15) !important;
+}
+/* Labels del sidebar */
+section[data-testid="stSidebar"] label {
+    color: #333 !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+}
+/* Multiselect tags en sidebar */
+section[data-testid="stSidebar"] [data-baseweb="tag"] {
+    background: #e94560 !important;
+    color: white !important;
+}
+section[data-testid="stSidebar"] [data-baseweb="select"] > div {
+    background: #f5f5f5 !important;
+    border-color: #ccc !important;
+    color: #111 !important;
+}
+
+/* ── Inputs en zona principal ── */
 .stTextInput > div > div > input,
 .stTextArea > div > div > textarea {
-    background: #111 !important;
+    background: #1a1a1a !important;
     border: 1px solid #333 !important;
     color: #f0f0f0 !important;
     border-radius: 8px !important;
-    font-family: 'DM Sans', sans-serif !important;
 }
 .stTextInput > div > div > input:focus,
 .stTextArea > div > div > textarea:focus {
@@ -171,19 +196,17 @@ h1, h2, h3 {
 
 /* File uploader */
 .stFileUploader > div {
-    background: #111 !important;
-    border: 2px dashed #333 !important;
+    background: #1a1a1a !important;
+    border: 2px dashed #444 !important;
     border-radius: 12px !important;
 }
 
 /* Progress */
-.stProgress > div > div > div {
-    background: #e94560 !important;
-}
+.stProgress > div > div > div { background: #e94560 !important; }
 
 /* Tabs */
 .stTabs [data-baseweb="tab-list"] {
-    background: #111;
+    background: #1a1a1a;
     border-radius: 8px;
     padding: 4px;
     gap: 4px;
@@ -200,25 +223,17 @@ h1, h2, h3 {
     color: white !important;
 }
 
-/* Sidebar */
-section[data-testid="stSidebar"] {
-    background: #111 !important;
-    border-right: 1px solid #222 !important;
-}
-section[data-testid="stSidebar"] .stMarkdown {
-    color: #ccc;
-}
-
-/* Success / error */
-.stSuccess { border-left: 3px solid #00d4aa !important; }
-.stError   { border-left: 3px solid #e94560 !important; }
-
 /* Expander */
 .streamlit-expanderHeader {
     background: #1a1a1a !important;
     border: 1px solid #2a2a2a !important;
     border-radius: 8px !important;
     color: #f0f0f0 !important;
+}
+
+/* Divider en sidebar */
+section[data-testid="stSidebar"] hr {
+    border-color: #ddd !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -347,22 +362,35 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Sidebar — credenciales
+# Sidebar — credenciales + selección de campos
 with st.sidebar:
-    st.markdown("### 🔐 Credenciales API")
-    st.markdown("<small style='color:#888'>Encuéntralas en Plytix → Admin → API</small>", unsafe_allow_html=True)
-    api_key    = st.text_input("API Key",    type="default", placeholder="S98GV47S10GQ09TN2TPZ")
-    api_secret = st.text_input("API Secret", type="password", placeholder="tu_api_secret")
+    st.markdown("## 🔐 Credenciales API")
+    st.markdown("<small>Encuéntralas en Plytix → Admin → API</small>", unsafe_allow_html=True)
+    st.markdown("")
+    api_key    = st.text_input("API Key",    type="default",  placeholder="Ej: S98GV47S10GQ09TN2TPZ")
+    api_secret = st.text_input("API Secret", type="password", placeholder="Tu API secret")
+
+    if api_key and api_secret:
+        st.success("✅ Credenciales introducidas")
+    else:
+        st.warning("⚠️ Introduce tus credenciales")
 
     st.markdown("---")
-    st.markdown("### 📋 Campos configurados")
-    st.markdown(f"<small style='color:#888'>Se descargarán <b style='color:#e94560'>{len(CAMPOS_DESEADOS)}</b> campos por producto</small>", unsafe_allow_html=True)
-    with st.expander("Ver campos", expanded=False):
-        for c in CAMPOS_DESEADOS:
-            st.markdown(f"<small>• {c}</small>", unsafe_allow_html=True)
+    st.markdown("## 📋 Campos a descargar")
+    st.markdown("<small>Selecciona qué atributos quieres en el Excel final</small>", unsafe_allow_html=True)
+    st.markdown("")
+
+    campos_seleccionados = st.multiselect(
+        "Campos seleccionados",
+        options=TODOS_LOS_CAMPOS,
+        default=CAMPOS_DESEADOS,
+        help="Busca y selecciona los campos que quieres descargar"
+    )
+
+    st.markdown(f"**{len(campos_seleccionados)}** campos seleccionados")
 
     st.markdown("---")
-    st.markdown("<small style='color:#555'>Plytix Downloader v1.0<br>Cecotec Internal Tool</small>", unsafe_allow_html=True)
+    st.markdown("<small style='color:#888'>Plytix Downloader v1.0 · Cecotec</small>", unsafe_allow_html=True)
 
 # Main — tabs
 tab1, tab2 = st.tabs(["📂  SUBIR EXCEL", "✏️  ESCRIBIR SKUS"])
