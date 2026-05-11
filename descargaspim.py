@@ -1,12 +1,4 @@
-import subprocess
-import sys
-
-# Instalar openpyxl si no está disponible (Streamlit Cloud)
-try:
-    import openpyxl
-except ImportError:
-    subprocess.run([sys.executable, "-m", "pip", "install", "openpyxl", "--quiet"], check=True)
-    import openpyxl
+import openpyxl
 
 import streamlit as st
 import requests
