@@ -3,4 +3,3 @@ requests
 pandas
 openpyxl
 urllib3
-xlrd
