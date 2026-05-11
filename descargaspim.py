@@ -374,33 +374,18 @@ with col_izq:
 
 with col_der:
     st.markdown('<div class="section-dark"><h3>📋 Paso 2 — Campos a descargar</h3>', unsafe_allow_html=True)
-    # Botones acción rápida
-    col_all, col_none, col_default, col_spacer = st.columns([1, 1, 1, 3])
-    with col_all:
-        if st.button("☑️ Todos", key="btn_todos", help="Seleccionar todos los campos"):
-            st.session_state.campos = TODOS_LOS_CAMPOS[:]
-            st.rerun()
-    with col_none:
-        if st.button("🗑️ Limpiar", key="btn_limpiar", help="Borrar todos los campos"):
-            st.session_state.campos = []
-            st.rerun()
-    with col_default:
-        if st.button("↩️ Defecto", key="btn_default", help="Restaurar campos por defecto"):
-            st.session_state.campos = [c for c in CAMPOS_DESEADOS if c in TODOS_LOS_CAMPOS]
-            st.rerun()
-
     # ── Botones acción rápida — tamaño igual ────────────────
     col_all, col_none, col_default = st.columns(3)
     with col_all:
-        if st.button("☑️ Seleccionar todos", key="btn_todos", use_container_width=True):
+        if st.button("☑️ Seleccionar todos", key="btn_sel_todos", use_container_width=True):
             st.session_state.campos = TODOS_LOS_CAMPOS[:]
             st.rerun()
     with col_none:
-        if st.button("🗑️ Limpiar todos", key="btn_limpiar", use_container_width=True):
+        if st.button("🗑️ Limpiar todos", key="btn_limpiar_todos", use_container_width=True):
             st.session_state.campos = []
             st.rerun()
     with col_default:
-        if st.button("↩️ Restaurar defecto", key="btn_default", use_container_width=True):
+        if st.button("↩️ Restaurar defecto", key="btn_restaurar_defecto", use_container_width=True):
             st.session_state.campos = [c for c in CAMPOS_DESEADOS if c in TODOS_LOS_CAMPOS]
             st.rerun()
 
