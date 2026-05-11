@@ -1,5 +1,3 @@
-import openpyxl
-
 import streamlit as st
 import requests
 import pandas as pd
@@ -12,7 +10,7 @@ warnings.filterwarnings("ignore")
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
 # ============================================================
-# CAMPOS POR DEFECTO (preseleccionados al abrir la app)
+# CAMPOS POR DEFECTO
 # ============================================================
 CAMPOS_DESEADOS = [
     "nombre_producto__modelo",
@@ -32,9 +30,6 @@ CAMPOS_DESEADOS = [
     "referencia_en_web",
 ]
 
-# ============================================================
-# LISTA COMPLETA DE ATRIBUTOS DISPONIBLES EN PLYTIX
-# ============================================================
 TODOS_LOS_CAMPOS = sorted(list(dict.fromkeys([
     "altura_cm", "altura_pallet_140_cm", "altura_pallet_170", "altura_pallet_180",
     "altura_pallet_190", "altura_pallet_200", "altura_pallet_210", "altura_pallet_240",
@@ -99,8 +94,7 @@ TODOS_LOS_CAMPOS = sorted(list(dict.fromkeys([
     "familia_hu", "familia_it", "familia_nl", "familia_pl", "familia_pt", "familia_tr",
     "familia_padre", "familia_padre_de", "familia_padre_en", "familia_padre_fr",
     "familia_padre_gr", "familia_padre_it", "familia_padre_nl", "familia_padre_pl",
-    "familia_padre_pt", "familia_padre_tr",
-    "ficha_pesos_detallados",
+    "familia_padre_pt", "familia_padre_tr", "ficha_pesos_detallados",
     "foto_enriquecida_01", "foto_enriquecida_02", "foto_enriquecida_03",
     "foto_enriquecida_04", "foto_enriquecida_05", "foto_enriquecida_06",
     "foto_enriquecida_no_text",
@@ -131,8 +125,7 @@ TODOS_LOS_CAMPOS = sorted(list(dict.fromkeys([
     "iconografia_pie_de_aspiracion", "iconografia_rating_label",
     "manual_de_instrucciones_arte_final", "manual_de_instrucciones_comercial",
     "masterbox_height", "masterbox_length", "masterbox_per_layer",
-    "masterbox_per_pallet_storage", "masterbox_width",
-    "material_de_la_superficie",
+    "masterbox_per_pallet_storage", "masterbox_width", "material_de_la_superficie",
     "medidas_alto_encastre_cm", "medidas_ancho_encastre_cm", "medidas_largo_encastre_cm",
     "nombre_producto__modelo", "nombre_producto__modelo_cz", "nombre_producto__modelo_de",
     "nombre_producto__modelo_en", "nombre_producto__modelo_fr", "nombre_producto__modelo_gr",
@@ -146,7 +139,7 @@ TODOS_LOS_CAMPOS = sorted(list(dict.fromkeys([
     "plazo_garantia", "potencia_calorifica_kw",
     "product_depth", "product_height", "product_weight", "product_width", "profundidad_cm",
     "propietario", "propiedad_intelectual", "range_version", "rating_label_del_producto_text",
-    "sistema", "soporte_para_wok",
+    "referencia_en_web", "sistema", "soporte_para_wok",
     "subfamilia", "subfamilia_cz", "subfamilia_de", "subfamilia_en", "subfamilia_fr",
     "subfamilia_gr", "subfamilia_hu", "subfamilia_it", "subfamilia_nl", "subfamilia_pl",
     "subfamilia_pt", "subfamilia_tr",
@@ -164,227 +157,51 @@ TODOS_LOS_CAMPOS = sorted(list(dict.fromkeys([
     "unidades_por_pallet_140", "unidades_por_pallet_170", "unidades_por_pallet_180",
     "unidades_por_pallet_190", "unidades_por_pallet_200", "unidades_por_pallet_210",
     "unidades_por_pallet_240", "units_per_masterbox", "units_per_pallet",
-    "referencia_en_web", "videos_lanzamiento", "voltaje", "watts", "zonas_de_coccion",
+    "videos_lanzamiento", "voltaje", "watts", "zonas_de_coccion",
 ])))
 
 
 # ── Page config ──────────────────────────────────────────────
 st.set_page_config(page_title="Plytix Downloader · Cecotec", page_icon="⬇️", layout="wide")
 
-# ── Session state init ────────────────────────────────────────
 if "skus_finales" not in st.session_state:
     st.session_state.skus_finales = []
-if "descarga_lista" not in st.session_state:
-    st.session_state.descarga_lista = False
 
-# ── CSS — estilo Panel Turaco ────────────────────────────────
+# ── CSS ──────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
-
-html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
-    background: #0a0a0a;
-    color: #ffffff;
-}
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; background: #0a0a0a; color: #ffffff; }
 .stApp { background: #0a0a0a; }
-
-/* ── Ocultar elementos nativos de Streamlit ── */
 #MainMenu, footer, header { visibility: hidden; }
 .block-container { padding: 2rem 2.5rem 3rem !important; max-width: 1400px !important; }
-
-/* ── Header principal ── */
-.turaco-header {
-    margin-bottom: 1.5rem;
-}
-.turaco-header h1 {
-    font-size: 2.2rem;
-    font-weight: 800;
-    color: #ffffff;
-    margin: 0 0 0.8rem 0;
-    letter-spacing: -0.5px;
-}
-.turaco-banner {
-    background: #1a1a1a;
-    border: 1px solid #2a2a2a;
-    border-radius: 8px;
-    padding: 0.85rem 1.2rem;
-    font-size: 0.9rem;
-    color: #cccccc;
-    margin-bottom: 1.2rem;
-}
+.turaco-header h1 { font-size: 2.2rem; font-weight: 800; color: #ffffff; margin: 0 0 0.8rem 0; letter-spacing: -0.5px; }
+.turaco-banner { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 0.85rem 1.2rem; font-size: 0.9rem; color: #cccccc; margin-bottom: 1.2rem; }
 .turaco-banner b { color: #ffffff; }
-
-/* ── Cards blancas ── */
-.card-white {
-    background: #f5f5f5;
-    border-radius: 14px;
-    padding: 1.8rem 1.5rem 1.4rem;
-    text-align: center;
-    border: 1px solid #e0e0e0;
-    height: 100%;
-    min-height: 160px;
-}
+.card-white { background: #f5f5f5; border-radius: 14px; padding: 1.8rem 1.5rem 1.4rem; text-align: center; border: 1px solid #e0e0e0; min-height: 160px; }
 .card-white .card-icon { font-size: 2.2rem; margin-bottom: 0.7rem; }
-.card-white .card-title {
-    font-size: 1rem;
-    font-weight: 700;
-    color: #111;
-    margin-bottom: 0.4rem;
-}
-.card-white .card-desc {
-    font-size: 0.8rem;
-    color: #666;
-    line-height: 1.4;
-}
-
-/* ── Sección con fondo oscuro ── */
-.section-dark {
-    background: #111111;
-    border: 1px solid #222;
-    border-radius: 14px;
-    padding: 1.5rem 1.8rem;
-    margin-bottom: 1.2rem;
-}
-.section-dark h3 {
-    color: #ffffff !important;
-    font-size: 1rem;
-    font-weight: 700;
-    margin: 0 0 1rem 0;
-}
-
-/* ── Stat boxes ── */
+.card-white .card-title { font-size: 1rem; font-weight: 700; color: #111; margin-bottom: 0.4rem; }
+.card-white .card-desc { font-size: 0.8rem; color: #666; line-height: 1.4; }
+.section-dark { background: #111111; border: 1px solid #222; border-radius: 14px; padding: 1.5rem 1.8rem; margin-bottom: 1.2rem; }
+.section-dark h3 { color: #ffffff !important; font-size: 1rem; font-weight: 700; margin: 0 0 1rem 0; }
 .stat-row { display: flex; gap: 1rem; margin: 1rem 0; }
-.stat-box {
-    background: #1a1a1a;
-    border: 1px solid #2a2a2a;
-    border-radius: 10px;
-    padding: 1rem 1.2rem;
-    flex: 1;
-    text-align: center;
-}
-.stat-box .num {
-    font-size: 2rem;
-    font-weight: 800;
-    color: #22d3c5;
-    display: block;
-    line-height: 1;
-}
-.stat-box .lbl {
-    font-size: 0.72rem;
-    color: #888;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    margin-top: 0.3rem;
-    display: block;
-}
-
-/* ── Botones cyan (estilo Turaco) ── */
-.stButton > button {
-    background: #22d3c5 !important;
-    color: #000000 !important;
-    border: none !important;
-    border-radius: 8px !important;
-    font-weight: 700 !important;
-    font-size: 0.85rem !important;
-    padding: 0.55rem 1.4rem !important;
-    transition: all 0.2s !important;
-    width: 100% !important;
-}
-.stButton > button:hover {
-    background: #1ab5a8 !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 4px 15px rgba(34,211,197,0.3) !important;
-}
-.stButton > button:disabled {
-    background: #333 !important;
-    color: #666 !important;
-}
-
-/* ── Inputs ── */
-.stTextInput > div > div > input,
-.stTextArea > div > div > textarea {
-    background: #1a1a1a !important;
-    border: 1.5px solid #333 !important;
-    color: #ffffff !important;
-    border-radius: 8px !important;
-    font-size: 0.9rem !important;
-}
-.stTextInput > div > div > input::placeholder,
-.stTextArea > div > div > textarea::placeholder { color: #555 !important; }
-.stTextInput > div > div > input:focus,
-.stTextArea > div > div > textarea:focus {
-    border-color: #22d3c5 !important;
-    box-shadow: 0 0 0 2px rgba(34,211,197,0.2) !important;
-}
+.stat-box { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 1rem 1.2rem; flex: 1; text-align: center; }
+.stat-box .num { font-size: 2rem; font-weight: 800; color: #22d3c5; display: block; line-height: 1; }
+.stat-box .lbl { font-size: 0.72rem; color: #888; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 0.3rem; display: block; }
+.stButton > button { background: #22d3c5 !important; color: #000000 !important; border: none !important; border-radius: 8px !important; font-weight: 700 !important; font-size: 0.85rem !important; padding: 0.55rem 1.4rem !important; transition: all 0.2s !important; width: 100% !important; }
+.stButton > button:hover { background: #1ab5a8 !important; transform: translateY(-1px) !important; box-shadow: 0 4px 15px rgba(34,211,197,0.3) !important; }
+.stButton > button:disabled { background: #333 !important; color: #666 !important; }
+.stTextInput > div > div > input, .stTextArea > div > div > textarea { background: #1a1a1a !important; border: 1.5px solid #333 !important; color: #ffffff !important; border-radius: 8px !important; font-size: 0.9rem !important; }
+.stTextInput > div > div > input:focus, .stTextArea > div > div > textarea:focus { border-color: #22d3c5 !important; box-shadow: 0 0 0 2px rgba(34,211,197,0.2) !important; }
 label { color: #aaaaaa !important; font-size: 0.82rem !important; font-weight: 600 !important; }
-
-/* ── File uploader ── */
-[data-testid="stFileUploader"] {
-    background: #111 !important;
-    border: 2px dashed #333 !important;
-    border-radius: 12px !important;
-}
-[data-testid="stFileUploader"]:hover { border-color: #22d3c5 !important; }
-
-/* ── Multiselect ── */
-[data-baseweb="select"] > div {
-    background: #1a1a1a !important;
-    border-color: #333 !important;
-    color: #fff !important;
-}
-[data-baseweb="tag"] {
-    background: #22d3c5 !important;
-    color: #000 !important;
-    font-weight: 700 !important;
-}
-[data-baseweb="menu"] {
-    background: #1a1a1a !important;
-    border: 1px solid #333 !important;
-}
-[data-baseweb="option"]:hover { background: #222 !important; }
-
-/* ── Tabs ── */
-.stTabs [data-baseweb="tab-list"] {
-    background: #111;
-    border-radius: 10px;
-    padding: 4px;
-    gap: 4px;
-    border: 1px solid #222;
-}
-.stTabs [data-baseweb="tab"] {
-    background: transparent !important;
-    color: #888 !important;
-    border-radius: 7px !important;
-    font-weight: 600 !important;
-    font-size: 0.85rem !important;
-}
-.stTabs [aria-selected="true"] {
-    background: #22d3c5 !important;
-    color: #000 !important;
-}
-
-/* ── Progress ── */
+[data-testid="stFileUploader"] { background: #111 !important; border: 2px dashed #333 !important; border-radius: 12px !important; }
+[data-baseweb="select"] > div { background: #1a1a1a !important; border-color: #333 !important; color: #fff !important; }
+[data-baseweb="tag"] { background: #22d3c5 !important; color: #000 !important; font-weight: 700 !important; }
+[data-baseweb="menu"] { background: #1a1a1a !important; border: 1px solid #333 !important; }
+.stTabs [data-baseweb="tab-list"] { background: #111; border-radius: 10px; padding: 4px; gap: 4px; border: 1px solid #222; }
+.stTabs [data-baseweb="tab"] { background: transparent !important; color: #888 !important; border-radius: 7px !important; font-weight: 600 !important; font-size: 0.85rem !important; }
+.stTabs [aria-selected="true"] { background: #22d3c5 !important; color: #000 !important; }
 .stProgress > div > div > div { background: #22d3c5 !important; }
-
-/* ── Alerts ── */
-.stSuccess { background: #0d2e1f !important; border-left: 3px solid #22d3c5 !important; color: #aaa !important; }
-.stWarning { background: #2a2000 !important; border-left: 3px solid #f59e0b !important; }
-.stError   { background: #2e0d0d !important; border-left: 3px solid #ef4444 !important; }
-.stInfo    { background: #0d1e2e !important; border-left: 3px solid #22d3c5 !important; }
-
-/* ── Expander ── */
-[data-testid="stExpander"] {
-    background: #111 !important;
-    border: 1px solid #222 !important;
-    border-radius: 10px !important;
-}
-[data-testid="stExpander"] summary { color: #ccc !important; font-weight: 600 !important; }
-
-/* ── Dataframe ── */
-[data-testid="stDataFrame"] { border-radius: 10px; overflow: hidden; }
-
-/* ── Separador ── */
 hr { border-color: #222 !important; margin: 1.5rem 0 !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -496,11 +313,26 @@ def ejecutar_descarga(skus, api_key, api_secret, campos, progress_bar, status_te
     return pd.DataFrame(resultados), None
 
 
-# ════════════════════════════════════════════════════════════
-# UI — LAYOUT TIPO PANEL TURACO
-# ════════════════════════════════════════════════════════════
+def leer_excel(uploaded_file):
+    """Lee Excel usando pandas con engine xlrd o openpyxl según disponibilidad."""
+    try:
+        return pd.read_excel(uploaded_file, engine="openpyxl")
+    except Exception:
+        try:
+            return pd.read_excel(uploaded_file)
+        except Exception as e:
+            raise e
 
-# ── HEADER ───────────────────────────────────────────────────
+
+def df_a_csv_buffer(df):
+    """Exporta como CSV — no requiere openpyxl."""
+    buf = io.StringIO()
+    df.to_csv(buf, index=False, encoding="utf-8-sig")
+    return io.BytesIO(buf.getvalue().encode("utf-8-sig"))
+
+
+# ── UI ────────────────────────────────────────────────────────
+
 st.markdown("""
 <div class="turaco-header">
     <h1>⬇️ Plytix Downloader</h1>
@@ -511,41 +343,25 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── CARDS DE RESUMEN ─────────────────────────────────────────
 c1, c2, c3, c4 = st.columns(4)
-with c1:
-    st.markdown("""
-    <div class="card-white">
-        <div class="card-icon">🔐</div>
-        <div class="card-title">Credenciales API</div>
-        <div class="card-desc">Introduce tu API Key y Secret de Plytix para autenticarte</div>
-    </div>""", unsafe_allow_html=True)
-with c2:
-    st.markdown("""
-    <div class="card-white">
-        <div class="card-icon">📋</div>
-        <div class="card-title">Selecciona Campos</div>
-        <div class="card-desc">Elige qué atributos quieres incluir en el Excel de salida</div>
-    </div>""", unsafe_allow_html=True)
-with c3:
-    st.markdown("""
-    <div class="card-white">
-        <div class="card-icon">📂</div>
-        <div class="card-title">Carga tus SKUs</div>
-        <div class="card-desc">Sube un Excel o pega los SKUs directamente en el campo de texto</div>
-    </div>""", unsafe_allow_html=True)
-with c4:
-    st.markdown("""
-    <div class="card-white">
-        <div class="card-icon">⬇️</div>
-        <div class="card-title">Descarga Excel</div>
-        <div class="card-desc">Obtén el reporte completo con todos los atributos seleccionados</div>
-    </div>""", unsafe_allow_html=True)
+for col, icon, title, desc in [
+    (c1, "🔐", "Credenciales API", "Introduce tu API Key y Secret de Plytix para autenticarte"),
+    (c2, "📋", "Selecciona Campos", "Elige qué atributos quieres incluir en el Excel de salida"),
+    (c3, "📂", "Carga tus SKUs", "Sube un Excel o pega los SKUs directamente en el campo de texto"),
+    (c4, "⬇️", "Descarga CSV/Excel", "Obtén el reporte completo con todos los atributos seleccionados"),
+]:
+    with col:
+        st.markdown(f"""
+        <div class="card-white">
+            <div class="card-icon">{icon}</div>
+            <div class="card-title">{title}</div>
+            <div class="card-desc">{desc}</div>
+        </div>""", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ── PASO 1 + 2: CREDENCIALES Y CAMPOS ───────────────────────
-col_izq, col_der = st.columns([1, 1], gap="large")
+# ── PASO 1 + 2 ───────────────────────────────────────────────
+col_izq, col_der = st.columns(2, gap="large")
 
 with col_izq:
     st.markdown('<div class="section-dark"><h3>🔐 Paso 1 — Credenciales API</h3>', unsafe_allow_html=True)
@@ -554,23 +370,40 @@ with col_izq:
     if api_key and api_secret:
         st.success("✅ Credenciales introducidas correctamente")
     else:
-        st.warning("⚠️ Necesitas tus credenciales de Plytix → Admin → API")
+        st.warning("⚠️ Plytix → Admin → API → Tu usuario")
     st.markdown('</div>', unsafe_allow_html=True)
 
 with col_der:
     st.markdown('<div class="section-dark"><h3>📋 Paso 2 — Campos a descargar</h3>', unsafe_allow_html=True)
-    campos_seleccionados = st.multiselect(
-        label=f"Selecciona atributos ({len(TODOS_LOS_CAMPOS)} disponibles)",
-        options=TODOS_LOS_CAMPOS,
-        default=[c for c in CAMPOS_DESEADOS if c in TODOS_LOS_CAMPOS],
-        help="Escribe para buscar un campo concreto",
-        key="campos"
-    )
+    # Botón limpiar campos
+    if "limpiar_campos" not in st.session_state:
+        st.session_state.limpiar_campos = False
+
+    col_ms, col_clear = st.columns([5, 1])
+    with col_clear:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🗑️ Limpiar", key="btn_limpiar", help="Borrar todos los campos seleccionados"):
+            st.session_state.limpiar_campos = True
+            st.rerun()
+
+    default_campos = [] if st.session_state.limpiar_campos else [c for c in CAMPOS_DESEADOS if c in TODOS_LOS_CAMPOS]
+    if st.session_state.limpiar_campos:
+        st.session_state.limpiar_campos = False
+
+    with col_ms:
+        campos_seleccionados = st.multiselect(
+            label=f"Selecciona atributos ({len(TODOS_LOS_CAMPOS)} disponibles)",
+            options=TODOS_LOS_CAMPOS,
+            default=default_campos,
+            help="Escribe para buscar un campo concreto",
+            key="campos"
+        )
+
     if campos_seleccionados:
         st.markdown(f"""
         <div class="stat-row">
-            <div class="stat-box"><span class="num">{len(campos_seleccionados)}</span><span class="lbl">Campos seleccionados</span></div>
-            <div class="stat-box"><span class="num">{len(TODOS_LOS_CAMPOS)}</span><span class="lbl">Total disponibles</span></div>
+            <div class="stat-box"><span class="num">{len(campos_seleccionados)}</span><span class="lbl">Seleccionados</span></div>
+            <div class="stat-box"><span class="num">{len(TODOS_LOS_CAMPOS)}</span><span class="lbl">Disponibles</span></div>
         </div>""", unsafe_allow_html=True)
     else:
         st.warning("⚠️ Selecciona al menos un campo")
@@ -578,7 +411,7 @@ with col_der:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ── PASO 3: SKUS ─────────────────────────────────────────────
+# ── PASO 3 ───────────────────────────────────────────────────
 st.markdown('<div class="section-dark"><h3>📂 Paso 3 — Carga tus SKUs</h3>', unsafe_allow_html=True)
 
 tab1, tab2 = st.tabs(["📂  Subir Excel", "✏️  Escribir SKUs"])
@@ -587,55 +420,54 @@ with tab1:
     st.markdown("<br>", unsafe_allow_html=True)
     uploaded = st.file_uploader(
         "Arrastra aquí tu Excel con SKUs",
-        type=["xlsx", "xls"],
-        help="El archivo debe tener una columna con 'sku' en el nombre"
+        type=["xlsx", "xls", "csv"],
+        help="Columna con 'sku' en el nombre. Acepta xlsx, xls y csv."
     )
     if uploaded:
         try:
-            wb = openpyxl.load_workbook(uploaded, read_only=True, data_only=True)
-            ws = wb.active
-            headers_excel = [str(cell.value).strip() if cell.value else "" for cell in next(ws.iter_rows(min_row=1, max_row=1))]
-            col_idx = next((i for i, h in enumerate(headers_excel) if "sku" in h.lower()), None)
-            if col_idx is None:
-                st.error("❌ No se encontró una columna con 'sku' en el nombre.")
+            if uploaded.name.endswith(".csv"):
+                df_in = pd.read_csv(uploaded)
             else:
-                skus_from_excel = []
-                for row in ws.iter_rows(min_row=2, values_only=True):
-                    val = row[col_idx]
-                    if val is not None and str(val).strip():
-                        skus_from_excel.append(str(val).strip())
-                wb.close()
+                df_in = leer_excel(uploaded)
+
+            col_sku = next((c for c in df_in.columns if "sku" in c.lower()), None)
+            if col_sku is None:
+                st.error("❌ No se encontró columna con 'sku' en el nombre.")
+            else:
+                skus_excel = df_in[col_sku].dropna().astype(str).tolist()
+                skus_excel = [s.strip() for s in skus_excel if s.strip()]
                 st.markdown(f"""
                 <div class="stat-row">
-                    <div class="stat-box"><span class="num">{len(skus_from_excel)}</span><span class="lbl">SKUs cargados</span></div>
-                    <div class="stat-box"><span class="num">{len(headers_excel)}</span><span class="lbl">Columnas en Excel</span></div>
+                    <div class="stat-box"><span class="num">{len(skus_excel)}</span><span class="lbl">SKUs cargados</span></div>
+                    <div class="stat-box"><span class="num">{len(df_in.columns)}</span><span class="lbl">Columnas</span></div>
                 </div>""", unsafe_allow_html=True)
-                with st.expander("👁 Vista previa de SKUs", expanded=False):
-                    st.write(skus_from_excel[:15])
-                st.session_state.skus_finales = skus_from_excel
+                with st.expander("👁 Vista previa", expanded=False):
+                    st.write(skus_excel[:15])
+                st.session_state.skus_finales = skus_excel
+                st.success(f"✅ {len(skus_excel)} SKUs listos")
         except Exception as e:
-            st.error(f"❌ Error leyendo el archivo: {e}")
+            st.error(f"❌ Error: {e}")
 
 with tab2:
     st.markdown("<br>", unsafe_allow_html=True)
     texto_skus = st.text_area(
         "Pega los SKUs, uno por línea",
         height=180,
-        placeholder="A01_EU01_100185\nA01_EU01_100184\nA01_EU01_100183\n..."
+        placeholder="A01_EU01_100185\nA01_EU01_100184\n..."
     )
     if texto_skus.strip():
         skus_manual = [s.strip() for s in texto_skus.strip().splitlines() if s.strip()]
-        st.caption(f"✅ {len(skus_manual)} SKUs detectados")
-        if st.button("Usar estos SKUs ✓"):
+        st.caption(f"{len(skus_manual)} SKUs detectados")
+        if st.button("✓ Usar estos SKUs"):
             st.session_state.skus_finales = skus_manual
             st.rerun()
-        if st.session_state.skus_finales:
-            st.success(f"✅ {len(st.session_state.skus_finales)} SKUs listos para descargar")
+    if st.session_state.skus_finales and not uploaded:
+        st.success(f"✅ {len(st.session_state.skus_finales)} SKUs en memoria")
 
 st.markdown('</div>', unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ── PASO 4: DESCARGA ─────────────────────────────────────────
+# ── PASO 4 ───────────────────────────────────────────────────
 st.markdown('<div class="section-dark"><h3>⬇️ Paso 4 — Iniciar descarga</h3>', unsafe_allow_html=True)
 
 col_info, col_btn = st.columns([3, 1], gap="large")
@@ -645,14 +477,12 @@ with col_info:
         est = max(1, len(st.session_state.skus_finales) // 10)
         st.markdown(f"""
         <div class="stat-row">
-            <div class="stat-box"><span class="num">{len(st.session_state.skus_finales)}</span><span class="lbl">SKUs listos</span></div>
+            <div class="stat-box"><span class="num">{len(st.session_state.skus_finales)}</span><span class="lbl">SKUs</span></div>
             <div class="stat-box"><span class="num">{len(campos_seleccionados)}</span><span class="lbl">Campos</span></div>
-            <div class="stat-box"><span class="num">~{est}m</span><span class="lbl">Tiempo estimado</span></div>
+            <div class="stat-box"><span class="num">~{est}m</span><span class="lbl">Estimado</span></div>
         </div>""", unsafe_allow_html=True)
-    elif not st.session_state.skus_finales:
-        st.info("ℹ️ Carga tus SKUs en el Paso 3 para continuar")
-    elif not campos_seleccionados:
-        st.info("ℹ️ Selecciona campos en el Paso 2 para continuar")
+    else:
+        st.info("ℹ️ Completa los pasos anteriores para habilitar la descarga")
 
 with col_btn:
     st.markdown("<br>", unsafe_allow_html=True)
@@ -663,7 +493,6 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # ── EJECUCIÓN ─────────────────────────────────────────────────
 if iniciar and st.session_state.skus_finales:
-    st.markdown("<br>", unsafe_allow_html=True)
     progress_bar = st.progress(0.0)
     status_text  = st.empty()
 
@@ -675,34 +504,24 @@ if iniciar and st.session_state.skus_finales:
     if error:
         st.error(f"❌ {error}")
     else:
-        st.success(f"✅ ¡Descarga completada! {len(df_resultado)} productos procesados")
+        st.success(f"✅ {len(df_resultado)} productos descargados")
 
-        campos_con_datos = sum(
-            1 for c in df_resultado.columns
-            if df_resultado[c].astype(str).str.strip().ne("").any()
-        )
+        campos_con_datos = sum(1 for c in df_resultado.columns if df_resultado[c].astype(str).str.strip().ne("").any())
         st.markdown(f"""
         <div class="stat-row">
             <div class="stat-box"><span class="num">{len(df_resultado)}</span><span class="lbl">Productos</span></div>
             <div class="stat-box"><span class="num">{len(df_resultado.columns)}</span><span class="lbl">Columnas</span></div>
-            <div class="stat-box"><span class="num">{campos_con_datos}</span><span class="lbl">Campos con datos</span></div>
+            <div class="stat-box"><span class="num">{campos_con_datos}</span><span class="lbl">Con datos</span></div>
         </div>""", unsafe_allow_html=True)
 
-        with st.expander("👁 Vista previa del resultado", expanded=True):
+        with st.expander("👁 Vista previa", expanded=True):
             st.dataframe(df_resultado.head(20), use_container_width=True)
 
-        buffer = io.BytesIO()
-        wb_out = openpyxl.Workbook()
-        ws_out = wb_out.active
-        ws_out.append(list(df_resultado.columns))
-        for row in df_resultado.itertuples(index=False):
-            ws_out.append([str(v) if v is not None else "" for v in row])
-        wb_out.save(buffer)
-        buffer.seek(0)
-
+        # Exportar como CSV (no requiere openpyxl)
+        csv_buffer = df_a_csv_buffer(df_resultado)
         st.download_button(
-            label="⬇️ DESCARGAR EXCEL",
-            data=buffer,
-            file_name="reporte_plytix.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            label="⬇️ DESCARGAR CSV",
+            data=csv_buffer,
+            file_name="reporte_plytix.csv",
+            mime="text/csv"
         )
