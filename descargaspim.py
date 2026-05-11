@@ -389,32 +389,50 @@ with col_der:
             st.session_state.campos = [c for c in CAMPOS_DESEADOS if c in TODOS_LOS_CAMPOS]
             st.rerun()
 
-    # Búsqueda masiva — añadir todos los campos que contengan el texto
-    col_search, col_add = st.columns([4, 1])
-    with col_search:
-        busqueda_masiva = st.text_input(
-            "🔍 Añadir campos por patrón",
-            placeholder="Ej: bulletpoint_1  →  añade todos los que contengan ese texto",
-            key="busqueda_masiva",
-            label_visibility="collapsed"
-        )
-    with col_add:
-        if st.button("➕ Añadir coincidencias", key="btn_add_search"):
-            if busqueda_masiva.strip():
-                patron = busqueda_masiva.strip().lower()
-                coincidencias = [c for c in TODOS_LOS_CAMPOS if patron in c.lower()]
-                nuevos = [c for c in coincidencias if c not in st.session_state.campos]
-                if nuevos:
-                    st.session_state.campos = st.session_state.campos + nuevos
-                    st.rerun()
-                else:
-                    st.toast("No hay campos nuevos que añadir con ese patrón", icon="ℹ️")
+    # ── Buscador con multiselección rápida ──────────────────
+    busqueda = st.text_input(
+        "🔍 Filtrar campos para selección múltiple",
+        placeholder="Escribe parte del nombre, ej: bulletpoint  o  foto_enriquecida  o  _en",
+        key="busqueda_filtro",
+        label_visibility="visible"
+    )
 
+    if busqueda.strip():
+        patron = busqueda.strip().lower()
+        coincidencias = [c for c in TODOS_LOS_CAMPOS if patron in c.lower()]
+        ya_seleccionados = [c for c in coincidencias if c in st.session_state.campos]
+
+        if coincidencias:
+            seleccion_rapida = st.multiselect(
+                f"✅ {len(coincidencias)} coincidencias — selecciona los que quieras añadir:",
+                options=coincidencias,
+                default=ya_seleccionados,
+                key=f"rapida_{busqueda.strip()}"
+            )
+            col_add, col_add_all, col_spacer = st.columns([1, 1, 3])
+            with col_add:
+                if st.button("➕ Añadir seleccionados", key="btn_add_sel"):
+                    nuevos = [c for c in seleccion_rapida if c not in st.session_state.campos]
+                    if nuevos:
+                        st.session_state.campos = st.session_state.campos + nuevos
+                        st.rerun()
+            with col_add_all:
+                if st.button("➕ Añadir todos", key="btn_add_all"):
+                    nuevos = [c for c in coincidencias if c not in st.session_state.campos]
+                    if nuevos:
+                        st.session_state.campos = st.session_state.campos + nuevos
+                        st.rerun()
+        else:
+            st.caption("Sin coincidencias para ese patrón")
+
+    st.markdown("---")
+
+    # ── Lista completa de campos seleccionados ───────────────
     campos_seleccionados = st.multiselect(
-        label=f"Selecciona atributos ({len(TODOS_LOS_CAMPOS)} disponibles — escribe para buscar)",
+        label=f"Campos seleccionados ({len(TODOS_LOS_CAMPOS)} disponibles):",
         options=TODOS_LOS_CAMPOS,
         default=st.session_state.campos,
-        help="Escribe para filtrar individualmente, o usa el buscador de arriba para añadir varios a la vez.",
+        help="Puedes quitar campos individualmente haciendo click en la ✕ de cada tag.",
         key="campos"
     )
 
