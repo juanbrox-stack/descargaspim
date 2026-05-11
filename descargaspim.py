@@ -1,3 +1,7 @@
+import subprocess
+import sys
+subprocess.run([sys.executable, "-m", "pip", "install", "openpyxl", "xlrd", "--quiet"], check=False)
+
 import streamlit as st
 import requests
 import pandas as pd
@@ -16,7 +20,7 @@ CAMPOS_DESEADOS = [
     "nombre_producto__modelo",
     "descripcion_corta_del_producto",
     "descripcion_larga_del_producto",
-    "ean_13", "referencia en web",
+    "ean_13", "ean_14",
     "familia", "subfamilia",
     "foto_master_producto_main_image_1000x1000_png_01",
     "foto_master_producto_main_image_1000x1000_png_02",
