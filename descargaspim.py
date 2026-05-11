@@ -234,11 +234,27 @@ def obtener_token(api_key, api_secret):
         return None, str(e)
 
 
-def extraer_valor(val):
+def url_png_a_jpg(url):
+    """Convierte URLs de PNG a JPG para imágenes 1000x1000."""
+    if isinstance(url, str) and url.lower().endswith(".png"):
+        return url[:-4] + ".jpg"
+    return url
+
+CAMPOS_PNG_A_JPG = {
+    "foto_master_producto_main_image_1000x1000_png_01",
+    "foto_master_producto_main_image_1000x1000_png_02",
+}
+
+def extraer_valor(val, campo=None):
     if isinstance(val, dict):
-        return val.get("url", val.get("thumbnail", str(val)))
+        url = val.get("url", val.get("thumbnail", str(val)))
+        if campo in CAMPOS_PNG_A_JPG:
+            url = url_png_a_jpg(url)
+        return url
     if isinstance(val, list):
-        return " | ".join(extraer_valor(v) for v in val if v)
+        return " | ".join(extraer_valor(v, campo) for v in val if v)
+    if campo in CAMPOS_PNG_A_JPG and isinstance(val, str):
+        return url_png_a_jpg(val)
     return val if val is not None else ""
 
 
@@ -310,7 +326,7 @@ def ejecutar_descarga(skus, api_key, api_secret, campos, progress_bar, status_te
         attrs = obtener_atributos(p["id"], headers)
         fila = {"SKU": p.get("sku", "")}
         for campo in campos:
-            fila[campo] = extraer_valor(attrs.get(campo))
+            fila[campo] = extraer_valor(attrs.get(campo), campo)
         resultados.append(fila)
         time.sleep(0.2)
 
