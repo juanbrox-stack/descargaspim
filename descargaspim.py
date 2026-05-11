@@ -1,4 +1,6 @@
 import streamlit as st
+
+# Instalar openpyxl en tiempo de ejecución si el entorno no lo tiene
 import importlib.util
 if importlib.util.find_spec("openpyxl") is None:
     import subprocess, sys
@@ -9,6 +11,10 @@ import pandas as pd
 import time
 import io
 import warnings
+from urllib3.exceptions import InsecureRequestWarning
+
+warnings.filterwarnings("ignore")
+requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
 # ============================================================
 # CAMPOS POR DEFECTO (preseleccionados al abrir la app)
