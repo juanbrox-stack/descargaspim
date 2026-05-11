@@ -26,7 +26,7 @@ CAMPOS_DESEADOS = [
     "nombre_producto__modelo",
     "descripcion_corta_del_producto",
     "descripcion_larga_del_producto",
-    "ean_13", "ean_14","referencia en web",
+    "ean_13", "ean_14",
     "familia", "subfamilia",
     "foto_master_producto_main_image_1000x1000_png_01",
     "foto_master_producto_main_image_1000x1000_png_02",
@@ -37,6 +37,7 @@ CAMPOS_DESEADOS = [
     "bulletpoint_1_en", "bulletpoint_2_en", "bulletpoint_3_en",
     "asin", "estado_del_producto", "watts", "voltaje",
     "product_weight", "product_width", "product_height", "product_depth",
+    "referencia_en_web",
 ]
 
 # ============================================================
@@ -152,7 +153,7 @@ TODOS_LOS_CAMPOS = sorted(list(dict.fromkeys([
     "peso_facturable_nacional", "peso_producto_y_accesorios_principales",
     "plazo_garantia", "potencia_calorifica_kw",
     "product_depth", "product_height", "product_weight", "product_width", "profundidad_cm",
-    "propietario", "propiedad_intelectual", "range_version", "referencia en web", "rating_label_del_producto_text",
+    "propietario", "propiedad_intelectual", "range_version", "rating_label_del_producto_text",
     "sistema", "soporte_para_wok",
     "subfamilia", "subfamilia_cz", "subfamilia_de", "subfamilia_en", "subfamilia_fr",
     "subfamilia_gr", "subfamilia_hu", "subfamilia_it", "subfamilia_nl", "subfamilia_pl",
@@ -171,7 +172,7 @@ TODOS_LOS_CAMPOS = sorted(list(dict.fromkeys([
     "unidades_por_pallet_140", "unidades_por_pallet_170", "unidades_por_pallet_180",
     "unidades_por_pallet_190", "unidades_por_pallet_200", "unidades_por_pallet_210",
     "unidades_por_pallet_240", "units_per_masterbox", "units_per_pallet",
-    "videos_lanzamiento", "voltaje", "watts", "zonas_de_coccion",
+    "referencia_en_web", "videos_lanzamiento", "voltaje", "watts", "zonas_de_coccion",
 ])))
 
 
