@@ -330,13 +330,6 @@ def leer_excel(uploaded_file):
             raise e
 
 
-def df_a_csv_buffer(df):
-    """Exporta como CSV — no requiere openpyxl."""
-    buf = io.StringIO()
-    df.to_csv(buf, index=False, encoding="utf-8-sig")
-    return io.BytesIO(buf.getvalue().encode("utf-8-sig"))
-
-
 # ── UI ────────────────────────────────────────────────────────
 
 st.markdown("""
@@ -396,11 +389,32 @@ with col_der:
             st.session_state.campos = [c for c in CAMPOS_DESEADOS if c in TODOS_LOS_CAMPOS]
             st.rerun()
 
+    # Búsqueda masiva — añadir todos los campos que contengan el texto
+    col_search, col_add = st.columns([4, 1])
+    with col_search:
+        busqueda_masiva = st.text_input(
+            "🔍 Añadir campos por patrón",
+            placeholder="Ej: bulletpoint_1  →  añade todos los que contengan ese texto",
+            key="busqueda_masiva",
+            label_visibility="collapsed"
+        )
+    with col_add:
+        if st.button("➕ Añadir coincidencias", key="btn_add_search"):
+            if busqueda_masiva.strip():
+                patron = busqueda_masiva.strip().lower()
+                coincidencias = [c for c in TODOS_LOS_CAMPOS if patron in c.lower()]
+                nuevos = [c for c in coincidencias if c not in st.session_state.campos]
+                if nuevos:
+                    st.session_state.campos = st.session_state.campos + nuevos
+                    st.rerun()
+                else:
+                    st.toast("No hay campos nuevos que añadir con ese patrón", icon="ℹ️")
+
     campos_seleccionados = st.multiselect(
         label=f"Selecciona atributos ({len(TODOS_LOS_CAMPOS)} disponibles — escribe para buscar)",
         options=TODOS_LOS_CAMPOS,
         default=st.session_state.campos,
-        help="Escribe para filtrar. Usa los botones de arriba para selección rápida.",
+        help="Escribe para filtrar individualmente, o usa el buscador de arriba para añadir varios a la vez.",
         key="campos"
     )
 
@@ -522,11 +536,14 @@ if iniciar and st.session_state.skus_finales:
         with st.expander("👁 Vista previa", expanded=True):
             st.dataframe(df_resultado.head(20), use_container_width=True)
 
-        # Exportar como CSV (no requiere openpyxl)
-        csv_buffer = df_a_csv_buffer(df_resultado)
+        # Exportar como XLSX usando xlsxwriter
+        buffer_xlsx = io.BytesIO()
+        with pd.ExcelWriter(buffer_xlsx, engine="xlsxwriter") as writer:
+            df_resultado.to_excel(writer, index=False, sheet_name="Plytix")
+        buffer_xlsx.seek(0)
         st.download_button(
-            label="⬇️ DESCARGAR CSV",
-            data=csv_buffer,
-            file_name="reporte_plytix.csv",
-            mime="text/csv"
+            label="⬇️ DESCARGAR XLSX",
+            data=buffer_xlsx,
+            file_name="reporte_plytix.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
