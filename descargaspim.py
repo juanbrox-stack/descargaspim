@@ -1,4 +1,11 @@
 import streamlit as st
+
+# Instalar openpyxl en tiempo de ejecución si el entorno no lo tiene
+import importlib.util
+if importlib.util.find_spec("openpyxl") is None:
+    import subprocess, sys
+    subprocess.run([sys.executable, "-m", "pip", "install", "openpyxl"], check=False)
+import openpyxl
 import requests
 import pandas as pd
 import time
