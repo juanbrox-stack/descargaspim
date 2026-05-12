@@ -26,9 +26,8 @@ CAMPOS_ECATALOG_DEFECTO = [
     "Product / Model Name",
     "1000x1000 JPG (Marketplace) 01",
     "1000x1000 JPG (Marketplace) 02",
-    "1000x1000 JPG (Marketplace) 02",
-    "1000x1000 JPG (Marketplace) 04",
-    "1000x1000 JPG (Marketplace) 05",
+    "1000x1000 PNG (Web) 01",
+    "1000x1000 PNG (Web) 02",
     "Enhanced Photo 01",
     "Enhanced Photo 02",
     "Enhanced Photo 03",
@@ -42,8 +41,15 @@ CAMPOS_ECATALOG_DEFECTO = [
     "Foto Image Gallery 1:1 JPG 03",
     "Foto Image Gallery 1:1 JPG 04",
     "Foto Image Gallery 1:1 JPG 05",
-    "Foto Image Gallery 1:1 JPG 06","Enhanced Photo INT",
-    "Enhanced Photo TEXT ESP",
+    "Foto Image Gallery 1:1 JPG 06",
+    "Foto Image Gallery 16:9 JPG 01",
+    "Foto Image Gallery 16:9 JPG 02",
+    "Foto Image Gallery 16:9 JPG 03",
+    "HQ JPG 01",
+    "HQ JPG 02",
+    "2000x2000 JPG 01",
+    "2000x2000 JPG 02",
+    "Banner A+",
 ]
 
 TODOS_CAMPOS_ECATALOG = sorted([
@@ -258,7 +264,21 @@ label { color: #aaaaaa !important; font-size: 0.82rem !important; font-weight: 6
 [data-testid="stFileUploader"] { background: #111 !important; border: 2px dashed #333 !important; border-radius: 12px !important; }
 [data-baseweb="select"] > div { background: #1a1a1a !important; border-color: #333 !important; color: #fff !important; }
 [data-baseweb="select"] input { background: transparent !important; color: #ffffff !important; caret-color: #22d3c5 !important; }
-[data-baseweb="tag"] { background: #22d3c5 !important; color: #000 !important; font-weight: 700 !important; }
+[data-baseweb="tag"] {
+    background: #22d3c5 !important;
+    color: #000 !important;
+    font-weight: 600 !important;
+    max-width: none !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+}
+[data-baseweb="tag"] span[data-baseweb="tag-text"] {
+    overflow: visible !important;
+    text-overflow: unset !important;
+    white-space: nowrap !important;
+    max-width: none !important;
+    font-size: 0.78rem !important;
+}
 [data-baseweb="menu"] { background: #1a1a1a !important; border: 1px solid #333 !important; }
 [data-baseweb="menu"] li { color: #ffffff !important; }
 [data-baseweb="menu"] li:hover { background: #2a2a2a !important; color: #22d3c5 !important; }
