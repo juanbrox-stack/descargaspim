@@ -8,8 +8,8 @@ warnings.filterwarnings("ignore")
 from urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
-API_KEY    = "S98GV47S10GQ09TN2TPZ".strip()
-API_SECRET = "tTpRniVFG=vg7i0lMYWDxbMjQXPzQ5gVmgyQ@RL1".strip()
+API_KEY    = "".strip()
+API_SECRET = "".strip()
 
 RUTA_APP      = "/Users/juanignaciomartinez/Applications/DescargaUrlsImagenes"
 EXCEL_ENTRADA = "tus_skus.xlsx"
