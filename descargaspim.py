@@ -20,6 +20,14 @@ requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
 ECATALOG_ID = "6531422065345fbf54877ad5"
 
+# Campos PIM que se añaden automáticamente en modo híbrido (ecatalog + PIM)
+CAMPOS_PIM_HIBRIDO = [
+    "nombre_producto__modelo",
+    "descripcion_corta_del_producto_fr",
+    "bulletpoint_1_fr", "bulletpoint_2_fr", "bulletpoint_3_fr",
+    "bulletpoint_4_fr", "bulletpoint_5_fr",
+]
+
 # ============================================================
 # CAMPOS ECATALOG — nombres exactos del channel
 # ============================================================
@@ -561,7 +569,80 @@ def ejecutar_descarga_ecatalog(skus, api_key, api_secret, campos, progress_bar, 
     return pd.DataFrame(resultados), None
 
 
-# ── MODO PIM ──────────────────────────────────────────────────
+# ── MODO HÍBRIDO: ecatalog (imágenes) + PIM (textos) ─────────
+
+def ejecutar_descarga_hibrida(skus, api_key, api_secret, campos_ecatalog, campos_pim, progress_bar, status_text):
+    """
+    Combina en un solo DataFrame:
+    - Campos del ecatalog (imágenes JPG convertidas)
+    - Campos del PIM directo (textos, bulletpoints, etc.)
+    """
+    status_text.markdown("🔑 Autenticando...")
+    token, err = obtener_token(api_key, api_secret)
+    if not token:
+        return None, f"Error de autenticación: {err}"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+
+    # Paso 1: IDs de PIM para todos los SKUs (necesarios para ambas llamadas)
+    status_text.markdown("🔍 Buscando IDs en PIM...")
+    productos_base = buscar_ids_pim(skus, headers)
+    if not productos_base:
+        return None, "No se encontraron productos para los SKUs proporcionados."
+
+    id_por_sku = {p.get("sku", ""): p["id"] for p in productos_base}
+    total = len(productos_base)
+    resultados = []
+
+    for idx, p in enumerate(productos_base):
+        sku        = p.get("sku", "")
+        product_id = p["id"]
+        progreso   = (idx / total)
+
+        progress_bar.progress(progreso * 0.9)
+        status_text.markdown(f"📥 {idx+1}/{total}: `{sku}`")
+
+        fila = {"SKU": sku}
+
+        # ── Ecatalog: imágenes ──
+        if campos_ecatalog:
+            try:
+                r = requests.get(
+                    f"https://pim.plytix.com/api/v1/public/e-catalogs/{ECATALOG_ID}/products/{product_id}",
+                    headers=headers, verify=False, timeout=30
+                )
+                if r.status_code == 200:
+                    result = r.json().get("data", [])
+                    attrs_ec = (result[0].get("attributes", {}) if isinstance(result, list) and result
+                                else result.get("attributes", {}) if isinstance(result, dict) else {})
+                    for campo in campos_ecatalog:
+                        fila[campo] = extraer_valor(attrs_ec.get(campo))
+                else:
+                    for campo in campos_ecatalog:
+                        fila[campo] = ""
+            except Exception:
+                for campo in campos_ecatalog:
+                    fila[campo] = ""
+
+        # ── PIM: textos ──
+        if campos_pim:
+            attrs_pim = obtener_atributos_pim(product_id, headers)
+            for campo in campos_pim:
+                fila[campo] = extraer_valor(attrs_pim.get(campo))
+
+        resultados.append(fila)
+        time.sleep(0.2)
+
+    progress_bar.progress(1.0)
+    status_text.markdown("✅ Descarga híbrida completada")
+    return pd.DataFrame(resultados), None
+
+
+# ── MODO PIM ──────────────────────────────────────────────────────
 
 def buscar_ids_pim(skus, headers, progress_cb=None):
     todos = []
@@ -792,19 +873,30 @@ st.markdown('<div class="section-dark"><h3>⬇️ Paso 4 — Fuente e iniciar de
 
 modo = st.radio(
     "Fuente de datos:",
-    options=["ecatalog", "pim"],
-    format_func=lambda x: "📦 Ecatalog/Channel — JPGs convertidos (recomendado)" if x == "ecatalog" else "🗃️ PIM directo — todos los atributos",
-    horizontal=True,
+    options=["ecatalog", "hibrido", "pim"],
+    format_func=lambda x: {
+        "ecatalog": "📦 Ecatalog — solo imágenes JPG",
+        "hibrido":  "🔀 Híbrido — imágenes Ecatalog + textos PIM (recomendado para HTML)",
+        "pim":      "🗃️ PIM directo — todos los atributos",
+    }[x],
+    horizontal=False,
     key="modo"
 )
 
 # Actualizar campos disponibles según la fuente elegida
-todos_campos   = TODOS_CAMPOS_ECATALOG if modo == "ecatalog" else TODOS_CAMPOS_PIM
-defecto_campos = CAMPOS_ECATALOG_DEFECTO if modo == "ecatalog" else CAMPOS_PIM_DEFECTO
+todos_campos   = TODOS_CAMPOS_PIM if modo == "pim" else TODOS_CAMPOS_ECATALOG
+defecto_campos = CAMPOS_PIM_DEFECTO if modo == "pim" else CAMPOS_ECATALOG_DEFECTO
 if "ultimo_modo" not in st.session_state or st.session_state.ultimo_modo != modo:
     st.session_state.campos = defecto_campos[:]
     st.session_state.ultimo_modo = modo
     st.rerun()
+
+if modo == "hibrido":
+    st.info(
+        f"Se descargarán los campos seleccionados del **Ecatalog** (imágenes) "
+        f"más estos campos del **PIM** automáticamente: "
+        f"`{'`, `'.join(CAMPOS_PIM_HIBRIDO)}`"
+    )
 
 col_info, col_btn = st.columns([3, 1], gap="large")
 
@@ -838,6 +930,14 @@ if iniciar and st.session_state.skus_finales:
         df_resultado, error = ejecutar_descarga_ecatalog(
             st.session_state.skus_finales, api_key, api_secret,
             campos_seleccionados, progress_bar, status_text
+        )
+    elif modo == "hibrido":
+        # Separar qué campos van a ecatalog y cuáles al PIM
+        campos_ec  = [c for c in campos_seleccionados if c not in CAMPOS_PIM_HIBRIDO]
+        campos_pim = CAMPOS_PIM_HIBRIDO  # siempre se añaden en híbrido
+        df_resultado, error = ejecutar_descarga_hibrida(
+            st.session_state.skus_finales, api_key, api_secret,
+            campos_ec, campos_pim, progress_bar, status_text
         )
     else:
         df_resultado, error = ejecutar_descarga_pim(
