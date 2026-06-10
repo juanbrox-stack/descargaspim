@@ -413,6 +413,10 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; background: #1414
 
 /* Labels globales */
 label { color: #c0c0b8 !important; font-size: 0.82rem !important; font-weight: 600 !important; }
+/* Texto de opciones en radio buttons — Streamlit 1.5x renderiza como <p> dentro del label */
+div[role="radiogroup"] label p,
+div[role="radiogroup"] label span,
+div[role="radiogroup"] p { color: #FAF9F5 !important; }
 
 /* File uploader */
 [data-testid="stFileUploader"] { background: #1e1e1c !important; border: 2px dashed #3a3a38 !important; border-radius: 12px !important; }
@@ -435,6 +439,9 @@ label { color: #c0c0b8 !important; font-size: 0.82rem !important; font-weight: 6
 .stProgress > div > div > div { background: #3EB1C8 !important; }
 .stRadio > div { gap: 1rem !important; }
 .stRadio label { color: #FAF9F5 !important; font-size: 0.82rem !important; }
+.stRadio label p, .stRadio label span { color: #FAF9F5 !important; }
+[data-testid="stWidgetLabel"] p, [data-testid="stWidgetLabel"] span { color: #FAF9F5 !important; }
+[data-baseweb="radio"] ~ div p { color: #FAF9F5 !important; }
 hr { border-color: #2e2e2c !important; margin: 1.5rem 0 !important; }
 
 /* ── Editor de bloques HTML ──────────────────────────────── */
@@ -945,9 +952,9 @@ if st.session_state.get("df_resultado") is not None:
                         st.session_state[modo_key] = "campo"
 
                     modo_opts   = ["campo", "fijo", "banco"] if es_imagen else ["campo", "fijo"]
-                    modo_labels = {"campo": "📋 Campo PIM/Ecatalog", "fijo": "✏️ Texto/URL fijo", "banco": "🖼 Banco de imágenes"}
+                    modo_labels = {"campo": "Campo PIM/Ecatalog", "fijo": "Texto/URL fijo", "banco": "Banco imágenes"}
 
-                    st.markdown(f'<p style="font-size:0.82rem;font-weight:700;color:#141413;margin-bottom:4px">{label}</p>', unsafe_allow_html=True)
+                    st.markdown(f'<p style="font-size:0.82rem;font-weight:700;color:#FAF9F5;margin-bottom:4px">{label}</p>', unsafe_allow_html=True)
                     modo = st.radio("",
                         options=modo_opts,
                         format_func=lambda x: modo_labels[x],
@@ -1050,14 +1057,35 @@ if st.session_state.get("df_resultado") is not None:
             html_preview = _generar_html_fila(muestra, layout_actual)
             st.components.v1.html(html_preview, height=700, scrolling=True)
 
-        # Generar ZIP
-        if st.button("⚡ Generar ZIP de HTMLs", key="btn_html", use_container_width=True):
-            layout_final = [{"tipo": b["tipo"], "campos": b["campos"]}
-                            for b in st.session_state["html_bloques"]]
-            with st.spinner("Generando HTMLs..."):
-                st.session_state["zip_html_bytes"] = generar_zip_html(df_resultado, layout_final)
-                st.session_state["zip_html_count"] = len(df_resultado)
+        # Generar HTMLs
+        st.markdown("<br>", unsafe_allow_html=True)
+        col_gen1, col_gen2 = st.columns(2)
 
+        with col_gen1:
+            if st.button("⚡ Generar todos los HTMLs (ZIP)", key="btn_html", use_container_width=True):
+                layout_final = [{"tipo": b["tipo"], "campos": b["campos"]}
+                                for b in st.session_state["html_bloques"]]
+                with st.spinner("Generando HTMLs..."):
+                    st.session_state["zip_html_bytes"] = generar_zip_html(df_resultado, layout_final)
+                    st.session_state["zip_html_count"] = len(df_resultado)
+                    # Generar también lista de (sku, html) para copiar individualmente
+                    st.session_state["htmls_individuales"] = [
+                        (str(fila.get("SKU","sin_sku")), _generar_html_fila(fila.to_dict(), layout_final))
+                        for _, fila in df_resultado.iterrows()
+                    ]
+
+        with col_gen2:
+            if st.button("📋 Copiar HTML — producto a producto", key="btn_copiar_modo", use_container_width=True):
+                layout_final = [{"tipo": b["tipo"], "campos": b["campos"]}
+                                for b in st.session_state["html_bloques"]]
+                with st.spinner("Generando HTMLs..."):
+                    st.session_state["htmls_individuales"] = [
+                        (str(fila.get("SKU","sin_sku")), _generar_html_fila(fila.to_dict(), layout_final))
+                        for _, fila in df_resultado.iterrows()
+                    ]
+                    st.session_state["zip_html_bytes"] = None  # no necesita ZIP
+
+    # ── ZIP descargable ───────────────────────────────────────
     if st.session_state.get("zip_html_bytes"):
         st.success(f"✅ {st.session_state['zip_html_count']} HTMLs listos")
         st.download_button(
@@ -1067,3 +1095,48 @@ if st.session_state.get("df_resultado") is not None:
             mime="application/zip",
             key="dl_html_zip"
         )
+
+    # ── Copiar HTML por producto ──────────────────────────────
+    if st.session_state.get("htmls_individuales"):
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("#### 📋 Copiar HTML por producto")
+        st.caption("Selecciona el producto, copia el código y pégalo directamente en Cdiscount.")
+
+        htmls = st.session_state["htmls_individuales"]
+        skus_lista = [sku for sku, _ in htmls]
+
+        sku_sel = st.selectbox(
+            "Producto:",
+            options=skus_lista,
+            key="sku_copiar_sel"
+        )
+
+        idx_sel = skus_lista.index(sku_sel)
+        html_sel = htmls[idx_sel][1]
+
+        # Mostrar el HTML en un text_area grande — el usuario selecciona todo y copia
+        st.text_area(
+            "Código HTML — selecciona todo (Ctrl+A / Cmd+A) y copia:",
+            value=html_sel,
+            height=320,
+            key="textarea_html_copia"
+        )
+
+        # Navegación rápida anterior/siguiente
+        nav1, nav2, nav3 = st.columns([1, 3, 1])
+        with nav1:
+            if idx_sel > 0:
+                if st.button("◀ Anterior", key="nav_prev", use_container_width=True):
+                    st.session_state["sku_copiar_sel"] = skus_lista[idx_sel - 1]
+                    st.rerun()
+        with nav2:
+            st.markdown(
+                f'<p style="text-align:center;color:#FAF9F5;font-size:.85rem;margin-top:8px">' +
+                f'{idx_sel + 1} / {len(htmls)}</p>',
+                unsafe_allow_html=True
+            )
+        with nav3:
+            if idx_sel < len(htmls) - 1:
+                if st.button("Siguiente ▶", key="nav_next", use_container_width=True):
+                    st.session_state["sku_copiar_sel"] = skus_lista[idx_sel + 1]
+                    st.rerun()
