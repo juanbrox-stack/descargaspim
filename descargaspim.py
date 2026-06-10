@@ -793,47 +793,58 @@ if iniciar and st.session_state.skus_finales:
     if error:
         st.error(f"❌ {error}")
     else:
-        st.success(f"✅ {len(df_resultado)} productos descargados")
-
-        campos_con_datos = sum(1 for c in df_resultado.columns if df_resultado[c].astype(str).str.strip().ne("").any())
-        st.markdown(f"""
-        <div class="stat-row">
-            <div class="stat-box"><span class="num">{len(df_resultado)}</span><span class="lbl">Productos</span></div>
-            <div class="stat-box"><span class="num">{len(df_resultado.columns)}</span><span class="lbl">Columnas</span></div>
-            <div class="stat-box"><span class="num">{campos_con_datos}</span><span class="lbl">Con datos</span></div>
-        </div>""", unsafe_allow_html=True)
-
-        with st.expander("👁 Vista previa", expanded=True):
-            st.dataframe(df_resultado.head(20), use_container_width=True)
-
+        # Guardar en session_state para que persista tras cualquier rerender
         buffer_xlsx = io.BytesIO()
         with pd.ExcelWriter(buffer_xlsx, engine="xlsxwriter") as writer:
             df_resultado.to_excel(writer, index=False, sheet_name="Plytix")
         buffer_xlsx.seek(0)
+        st.session_state["df_resultado"]   = df_resultado
+        st.session_state["xlsx_bytes"]     = buffer_xlsx.getvalue()
+        st.session_state["resultado_modo"] = modo
+        st.session_state.pop("zip_html_bytes", None)   # limpiar ZIP anterior si había
 
+# ── RESULTADOS (fuera del if iniciar, persiste en session_state) ──
+if st.session_state.get("df_resultado") is not None:
+    df_resultado = st.session_state["df_resultado"]
+
+    st.success(f"✅ {len(df_resultado)} productos descargados")
+
+    campos_con_datos = sum(1 for c in df_resultado.columns if df_resultado[c].astype(str).str.strip().ne("").any())
+    st.markdown(f"""
+    <div class="stat-row">
+        <div class="stat-box"><span class="num">{len(df_resultado)}</span><span class="lbl">Productos</span></div>
+        <div class="stat-box"><span class="num">{len(df_resultado.columns)}</span><span class="lbl">Columnas</span></div>
+        <div class="stat-box"><span class="num">{campos_con_datos}</span><span class="lbl">Con datos</span></div>
+    </div>""", unsafe_allow_html=True)
+
+    with st.expander("👁 Vista previa", expanded=True):
+        st.dataframe(df_resultado.head(20), use_container_width=True)
+
+    st.download_button(
+        label="⬇️ DESCARGAR XLSX",
+        data=st.session_state["xlsx_bytes"],
+        file_name="reporte_plytix.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        key="dl_xlsx"
+    )
+
+    # ── Botón ZIP HTMLs Cdiscount ─────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown("#### 🌐 Generar HTMLs para Cdiscount")
+    st.caption("Un archivo `.html` por SKU, con Hero · Fotos enriquecidas · Specs técnicas.")
+
+    if st.button("⚡ Generar ZIP de HTMLs", key="btn_html"):
+        with st.spinner("Generando HTMLs..."):
+            st.session_state["zip_html_bytes"] = generar_zip_html(df_resultado, st.session_state["resultado_modo"])
+            st.session_state["zip_html_count"] = len(df_resultado)
+
+    if st.session_state.get("zip_html_bytes"):
+        st.success(f"✅ {st.session_state['zip_html_count']} HTMLs listos")
         st.download_button(
-            label="⬇️ DESCARGAR XLSX",
-            data=buffer_xlsx,
-            file_name="reporte_plytix.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            label="⬇️ DESCARGAR ZIP (HTMLs Cdiscount)",
+            data=st.session_state["zip_html_bytes"],
+            file_name="html_cdiscount.zip",
+            mime="application/zip",
+            key="dl_html_zip"
         )
-        # ── Botón ZIP HTMLs Cdiscount ─────────────────────────────
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("---")
-        st.markdown("#### 🌐 Generar HTMLs para Cdiscount")
-        st.caption("Un archivo `.html` por SKU, con Hero · Fotos enriquecidas · Specs técnicas.")
-
-        if st.button("⚡ Generar ZIP de HTMLs", key="btn_html"):
-            with st.spinner("Generando HTMLs..."):
-                st.session_state["zip_html_bytes"] = generar_zip_html(df_resultado, modo)
-                st.session_state["zip_html_count"] = len(df_resultado)
-
-        if st.session_state.get("zip_html_bytes"):
-            st.success(f"✅ {st.session_state['zip_html_count']} HTMLs listos")
-            st.download_button(
-                label="⬇️ DESCARGAR ZIP (HTMLs Cdiscount)",
-                data=st.session_state["zip_html_bytes"],
-                file_name="html_cdiscount.zip",
-                mime="application/zip",
-                key="dl_html_zip"
-            )
