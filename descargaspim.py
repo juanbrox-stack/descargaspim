@@ -438,65 +438,14 @@ label { color: #c0c0b8 !important; font-size: 0.82rem !important; font-weight: 6
 hr { border-color: #2e2e2c !important; margin: 1.5rem 0 !important; }
 
 /* ── Editor de bloques HTML ──────────────────────────────── */
-/* Container de cada bloque */
-[data-testid="stVerticalBlockBorderWrapper"] {
-    background: #FAF9F5 !important;
-    border-radius: 10px !important;
-    padding: 4px !important;
-}
-/* Labels dentro del editor de bloques — texto oscuro sobre fondo claro */
-[data-testid="stVerticalBlockBorderWrapper"] label {
-    color: #141413 !important;
-    font-weight: 600 !important;
-}
-/* Selects dentro del editor */
-[data-testid="stVerticalBlockBorderWrapper"] [data-baseweb="select"] > div {
-    background: #ffffff !important;
-    border-color: #c8c8c0 !important;
-    color: #141413 !important;
-}
-[data-testid="stVerticalBlockBorderWrapper"] [data-baseweb="select"] [data-baseweb="select"] span,
-[data-testid="stVerticalBlockBorderWrapper"] [data-baseweb="select"] div[data-baseweb="select"] {
-    color: #141413 !important;
-}
-/* Textarea dentro del editor */
-[data-testid="stVerticalBlockBorderWrapper"] .stTextArea > div > div > textarea {
-    background: #ffffff !important;
-    border-color: #c8c8c0 !important;
-    color: #141413 !important;
-}
-/* Radio dentro del editor */
-[data-testid="stVerticalBlockBorderWrapper"] .stRadio label {
-    color: #141413 !important;
-    font-size: 0.8rem !important;
-}
-/* Caption/preview text dentro del editor */
-[data-testid="stVerticalBlockBorderWrapper"] p,
-[data-testid="stVerticalBlockBorderWrapper"] small,
-[data-testid="stVerticalBlockBorderWrapper"] .stCaptionContainer p {
-    color: #141413 !important;
-}
-/* Headings dentro del editor */
-[data-testid="stVerticalBlockBorderWrapper"] h1,
-[data-testid="stVerticalBlockBorderWrapper"] h2,
-[data-testid="stVerticalBlockBorderWrapper"] h3,
-[data-testid="stVerticalBlockBorderWrapper"] strong {
-    color: #141413 !important;
-}
-/* Botones dentro del editor (subir/bajar/borrar) */
-[data-testid="stVerticalBlockBorderWrapper"] .stButton > button {
-    background: #141413 !important;
-    color: #FAF9F5 !important;
-}
-[data-testid="stVerticalBlockBorderWrapper"] .stButton > button:hover {
-    background: #3EB1C8 !important;
-    color: #141413 !important;
-}
-/* Acento turquesa en radio seleccionado */
-[data-testid="stVerticalBlockBorderWrapper"] [data-baseweb="radio"] [data-checked="true"] div {
-    background: #3EB1C8 !important;
-    border-color: #3EB1C8 !important;
-}
+/* Clase .bloque-editor aplicada con st.markdown envolvente */
+.bloque-editor { background: #FAF9F5; border-radius: 12px; padding: 16px 20px; margin-bottom: 12px; border: 1.5px solid #d0d0c8; }
+.bloque-editor-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; border-bottom: 1px solid #d0d0c8; padding-bottom: 10px; }
+.bloque-editor-titulo { font-size: 0.9rem; font-weight: 700; color: #141413; }
+.bloque-editor-badge { background: #3EB1C8; color: #141413; font-size: 0.72rem; font-weight: 700; padding: 2px 10px; border-radius: 20px; }
+.campo-preview-img { display: inline-block; margin-top: 6px; }
+.campo-preview-txt { font-size: 0.8rem; color: #444; margin-top: 5px; background: #eeeee6; border-radius: 6px; padding: 5px 8px; font-style: italic; border-left: 3px solid #3EB1C8; }
+.campo-preview-vacio { font-size: 0.78rem; color: #999; margin-top: 5px; font-style: italic; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -962,7 +911,12 @@ if st.session_state.get("df_resultado") is not None:
                 # Cabecera del bloque
                 hcol1, hcol2, hcol3, hcol4 = st.columns([3, 1, 1, 1])
                 with hcol1:
-                    st.markdown(f"**Bloque {idx+1} — {TIPOS_BLOQUE[tipo]}**")
+                    badge_color = {"hero":"#3EB1C8","text-photo":"#5bbf3e","photo-text":"#e8a020","photo-full":"#a05ce8"}.get(tipo,"#3EB1C8")
+                    st.markdown(
+                        f'<p style="font-size:.9rem;font-weight:700;color:#FAF9F5;margin:0">' +
+                        f'<span style="background:{badge_color};color:#141413;padding:2px 10px;border-radius:20px;font-size:.75rem;font-weight:700;margin-right:8px">{tipo}</span>' +
+                        f'Bloque {idx+1} — {TIPOS_BLOQUE[tipo]}</p>',
+                        unsafe_allow_html=True)
                 with hcol2:
                     if idx > 0 and st.button("↑", key=f"up_{idx}", use_container_width=True):
                         to_move = (idx, idx-1)
@@ -974,24 +928,36 @@ if st.session_state.get("df_resultado") is not None:
                         to_delete = idx
 
                 # Campos según tipo — cada campo tiene 3 modos
+                def _prev_html(texto, es_imagen=False, url=""):
+                    """Renderiza preview con colores explícitos — no hereda tema oscuro."""
+                    if es_imagen and url and _es_url(url):
+                        return  # se usa st.image aparte
+                    if texto:
+                        t = str(texto)[:140].replace("<","&lt;").replace(">","&gt;")
+                        st.markdown(f'<div class="campo-preview-txt">↳ {t}</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown('<div class="campo-preview-vacio">↳ sin datos en la muestra</div>', unsafe_allow_html=True)
+
                 def campo_selector(clave, label, es_imagen, idx=idx, campos=campos):
-                    clave_fija = f"{clave}_fijo" if not es_imagen else "img_fija" if clave == "img" else f"{clave}_fijo"
+                    clave_fija = "img_fija" if clave == "img" else f"{clave}_fijo"
                     modo_key   = f"modo_{idx}_{clave}"
                     if modo_key not in st.session_state:
                         st.session_state[modo_key] = "campo"
 
-                    modo_opts  = ["campo", "fijo", "banco"] if es_imagen else ["campo", "fijo"]
+                    modo_opts   = ["campo", "fijo", "banco"] if es_imagen else ["campo", "fijo"]
                     modo_labels = {"campo": "📋 Campo PIM/Ecatalog", "fijo": "✏️ Texto/URL fijo", "banco": "🖼 Banco de imágenes"}
-                    modo = st.radio(label,
+
+                    st.markdown(f'<p style="font-size:0.82rem;font-weight:700;color:#141413;margin-bottom:4px">{label}</p>', unsafe_allow_html=True)
+                    modo = st.radio("",
                         options=modo_opts,
                         format_func=lambda x: modo_labels[x],
                         index=modo_opts.index(st.session_state[modo_key]),
                         key=f"radio_{idx}_{clave}",
-                        horizontal=True)
+                        horizontal=True,
+                        label_visibility="collapsed")
                     st.session_state[modo_key] = modo
 
                     if modo == "campo":
-                        # Selector de campo del df
                         opc = ["(ninguno)"] + (cols_imagen if es_imagen else cols_disponibles)
                         val_actual = campos.get(clave, "(ninguno)")
                         if val_actual not in opc:
@@ -1000,19 +966,16 @@ if st.session_state.get("df_resultado") is not None:
                             index=opc.index(val_actual),
                             key=f"sel_{idx}_{clave}",
                             label_visibility="collapsed")
-                        campos[clave]       = sel
-                        campos[clave_fija]  = ""
-                        val_real  = muestra.get(sel, "") if sel != "(ninguno)" else ""
-                        url_real  = _primera_url(str(val_real)) if val_real else ""
+                        campos[clave]      = sel
+                        campos[clave_fija] = ""
+                        val_real = muestra.get(sel, "") if sel != "(ninguno)" else ""
+                        url_real = _primera_url(str(val_real)) if val_real else ""
                         if es_imagen and url_real and _es_url(url_real):
                             st.image(url_real, width=160)
-                        elif val_real:
-                            st.caption(f"↳ {str(val_real)[:120]}")
                         else:
-                            st.caption("↳ sin datos en la muestra")
+                            _prev_html(val_real)
 
                     elif modo == "banco":
-                        # Selector solo de campos de imagen del banco
                         opc_banco = ["(ninguno)"] + cols_imagen
                         val_actual = campos.get(clave, "(ninguno)")
                         if val_actual not in opc_banco:
@@ -1021,29 +984,30 @@ if st.session_state.get("df_resultado") is not None:
                             index=opc_banco.index(val_actual),
                             key=f"banco_{idx}_{clave}",
                             label_visibility="collapsed")
-                        campos[clave]       = sel
-                        campos[clave_fija]  = ""
+                        campos[clave]      = sel
+                        campos[clave_fija] = ""
                         val_real = muestra.get(sel, "") if sel != "(ninguno)" else ""
                         url_real = _primera_url(str(val_real)) if val_real else ""
                         if url_real and _es_url(url_real):
                             st.image(url_real, width=160)
                         else:
-                            st.caption("↳ sin datos en la muestra")
+                            _prev_html(val_real, es_imagen=True)
 
                     else:  # fijo
                         placeholder = "https://cdn.cecotec.com/img.jpg" if es_imagen else "Escribe el texto fijo..."
                         fijo_actual = campos.get(clave_fija, "")
                         fijo = st.text_area("", value=fijo_actual,
                             placeholder=placeholder,
-                            height=80,
+                            height=72,
                             key=f"fijo_{idx}_{clave}",
                             label_visibility="collapsed")
-                        campos[clave_fija]  = fijo
-                        campos[clave]       = ""
-                        if es_imagen and fijo and _es_url(fijo.split()[0]):
-                            st.image(fijo.strip().split()[0], width=160)
+                        campos[clave_fija] = fijo
+                        campos[clave]      = ""
+                        url_fija = fijo.strip().split()[0] if fijo.strip() else ""
+                        if es_imagen and _es_url(url_fija):
+                            st.image(url_fija, width=160)
                         elif fijo:
-                            st.caption(f"↳ {fijo[:120]}")
+                            _prev_html(fijo)
 
                 if tipo == "hero":
                     c1, c2, c3 = st.columns(3)
