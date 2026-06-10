@@ -216,16 +216,6 @@ TODOS_CAMPOS_PIM = sorted(list(dict.fromkeys([
 
 # ── Generador HTML Cdiscount ──────────────────────────────────
 
-_HERO_PIM      = "foto_master_producto_main_image_1000x1000_png_01"
-_HERO_ECATALOG = "1000x1000 JPG (Marketplace) 01"
-_ENHANCED_ECATALOG = [f"Enhanced Photo 0{n}" for n in range(1, 10)] +                      [f"Enhanced Photo {n}" for n in range(10, 13)]
-_ENHANCED_PIM  = [f"foto_enriquecida_0{n}" for n in range(1, 7)]
-_NOMBRE_PIM      = "nombre_producto__modelo"
-_NOMBRE_ECATALOG = "Product / Model Name"
-_DESC_PIM        = "descripcion_corta_del_producto"
-_BP_PIM          = [f"bulletpoint_{n}" for n in range(1, 6)]
-_BP_ECATALOG     = [f"bulletpoint_{n}" for n in range(1, 6)]  # mismo nombre en ecatalog
-
 
 def _primera_url(valor):
     if not valor:
@@ -233,150 +223,120 @@ def _primera_url(valor):
     return str(valor).split(" | ")[0].strip()
 
 
-def _generar_html_fila(fila: dict, modo: str, campo_extra: str = "") -> str:
-    """
-    Estructura editorial Cdiscount:
-      1. HERO: foto izq · nombre+desc dcha
-      2. BP1 izq · Enhanced Photo 01 dcha
-      3. Enhanced Photo 02 izq · BP2 dcha
-      4+. Por cada foto restante (03, 04, 05...):
-             foto a ancho completo
-             campo_extra debajo (si se eligió)
-    """
-    sku    = escape(str(fila.get("SKU", "")))
-    nombre = escape(str(fila.get(_NOMBRE_ECATALOG if modo == "ecatalog" else _NOMBRE_PIM, "") or sku))
-    desc   = escape(str(fila.get(_DESC_PIM, "") or ""))
+def _es_url(valor):
+    s = str(valor or "").strip()
+    return s.startswith("http://") or s.startswith("https://")
 
-    # ── Hero ──────────────────────────────────────────────────
-    campo_hero = _HERO_ECATALOG if modo == "ecatalog" else _HERO_PIM
-    img_hero   = _primera_url(fila.get(campo_hero, ""))
-    hero_img   = f'<img src="{img_hero}" alt="{nombre}" loading="lazy" />' if img_hero else '<div class="cd-nophoto">Sin imagen</div>'
 
-    # ── Bulletpoints ──────────────────────────────────────────
-    bps = []
-    for campo_bp in _BP_PIM:
-        val = str(fila.get(campo_bp, "") or "").strip()
-        if val:
-            bps.append(escape(val))
-
-    # ── Enhanced photos (en orden, solo las que tienen URL) ───
-    campos_enhanced = _ENHANCED_ECATALOG if modo == "ecatalog" else _ENHANCED_PIM
-    fotos = []
-    for c in campos_enhanced:
-        u = _primera_url(fila.get(c, ""))
-        if u:
-            fotos.append(u)
-
-    # ── Campo extra bajo cada foto suelta ─────────────────────
-    def valor_campo_extra(fila, campo):
-        if not campo:
-            return ""
-        val = str(fila.get(campo, "") or "").strip()
-        return escape(val)
-
-    # ── Bloque 2: texto izq · foto dcha ───────────────────────
-    bloque_bp1_foto1 = ""
-    if bps and len(fotos) >= 1:
-        bp1  = f'<div class="cd-text"><p>{bps[0]}</p></div>'
-        img1 = f'<img src="{fotos[0]}" alt="{nombre}" loading="lazy" />'
-        bloque_bp1_foto1 = f'<div class="cd-row">{bp1}{img1}</div>'
-    elif bps:
-        bloque_bp1_foto1 = f'<div class="cd-text-full"><p>{bps[0]}</p></div>'
-    elif len(fotos) >= 1:
-        bloque_bp1_foto1 = f'<div class="cd-photo-full"><img src="{fotos[0]}" alt="{nombre}" loading="lazy" /></div>'
-
-    # ── Bloque 3: foto izq · texto dcha ───────────────────────
-    bloque_foto2_bp2 = ""
-    if len(fotos) >= 2 and len(bps) >= 2:
-        img2 = f'<img src="{fotos[1]}" alt="{nombre}" loading="lazy" />'
-        bp2  = f'<div class="cd-text"><p>{bps[1]}</p></div>'
-        bloque_foto2_bp2 = f'<div class="cd-row cd-row-reverse">{img2}{bp2}</div>'
-    elif len(fotos) >= 2:
-        bloque_foto2_bp2 = f'<div class="cd-photo-full"><img src="{fotos[1]}" alt="{nombre}" loading="lazy" /></div>'
-    elif len(bps) >= 2:
-        bloque_foto2_bp2 = f'<div class="cd-text-full"><p>{bps[1]}</p></div>'
-
-    # ── Bloques 4+: foto sola + campo extra ───────────────────
-    bloques_resto = ""
-    extra_val = valor_campo_extra(fila, campo_extra)
-    for foto in fotos[2:]:
-        extra_html = f'<p class="cd-caption">{extra_val}</p>' if extra_val else ""
-        bloques_resto += f"""
-  <div class="cd-photo-block">
-    <img src="{foto}" alt="{nombre}" loading="lazy" />
-    {extra_html}
-  </div>"""
-
-    CSS = """
+CSS_HTML = """
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;color:#333;background:#fff;max-width:960px;margin:auto;padding:32px 16px}
-img{max-width:100%;display:block;border-radius:6px;object-fit:contain}
-
-/* HERO */
+img{max-width:100%;display:block;object-fit:contain}
 .cd-hero{display:flex;gap:40px;align-items:center;margin-bottom:48px;flex-wrap:wrap}
-.cd-hero img{width:420px;background:#f8f8f8;border:1px solid #eee;padding:8px}
+.cd-hero img{width:420px;background:#f8f8f8;border:1px solid #eee;padding:8px;border-radius:6px}
 .cd-nophoto{width:420px;height:300px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:.85rem;border-radius:6px}
 .cd-hero-text{flex:1;min-width:220px}
 .cd-sku{font-size:.72rem;color:#aaa;letter-spacing:.05em;margin-bottom:10px}
 .cd-hero-text h2{font-size:1.4rem;font-weight:700;line-height:1.3;color:#111;margin-bottom:12px}
 .cd-hero-text p{font-size:.95rem;line-height:1.7;color:#555}
-
-/* FILAS FOTO+TEXTO */
 .cd-row{display:flex;gap:36px;align-items:center;margin-bottom:40px;flex-wrap:wrap}
-.cd-row-reverse{flex-direction:row-reverse}
-.cd-row img{width:45%;min-width:220px;flex-shrink:0;background:#f8f8f8;border:1px solid #eee;padding:8px}
+.cd-row-rev{flex-direction:row-reverse}
+.cd-row img{width:45%;min-width:200px;flex-shrink:0;background:#f8f8f8;border:1px solid #eee;padding:8px;border-radius:6px}
 .cd-text{flex:1;min-width:200px}
 .cd-text p{font-size:.95rem;line-height:1.75;color:#444}
-.cd-text-full{padding:20px 0}
-.cd-text-full p{font-size:.95rem;line-height:1.75;color:#444}
-.cd-photo-full img{width:100%;background:#f8f8f8;border:1px solid #eee;padding:8px;margin-bottom:40px}
-
-/* FOTO SOLA + CAMPO EXTRA */
-.cd-photo-block{margin-bottom:36px;text-align:center}
-.cd-photo-block img{width:100%;background:#f8f8f8;border:1px solid #eee;padding:8px;margin-bottom:12px}
-.cd-caption{font-size:.9rem;color:#555;line-height:1.6;text-align:left}
-
-/* DIVISOR */
+.cd-full{margin-bottom:36px}
+.cd-full img{width:100%;background:#f8f8f8;border:1px solid #eee;padding:8px;border-radius:6px;margin-bottom:10px}
+.cd-caption{font-size:.9rem;color:#555;line-height:1.6}
 .cd-divider{border:none;border-top:1px solid #eee;margin:8px 0 36px}
 """
+
+
+def _generar_html_fila(fila: dict, layout: list) -> str:
+    """
+    Genera HTML para Cdiscount según un layout configurable.
+    layout: lista de dicts con {tipo, campos:{...}}
+    tipos: hero | text-photo | photo-text | photo-full
+    """
+    sku = escape(str(fila.get("SKU", "")))
+
+    def val(campo):
+        if not campo:
+            return ""
+        v = str(fila.get(campo, "") or "").strip()
+        return v
+
+    def img_tag(campo, alt="", css=""):
+        u = _primera_url(val(campo))
+        if not u:
+            return f'<div class="cd-nophoto">Sin imagen</div>'
+        return f'<img src="{u}" alt="{escape(alt)}" loading="lazy" {'class="'+css+'"' if css else ""}/> '
+
+    bloques = []
+    for bloque in layout:
+        tipo   = bloque.get("tipo", "")
+        campos = bloque.get("campos", {})
+
+        if tipo == "hero":
+            img   = img_tag(campos.get("img",""), sku)
+            nom   = escape(val(campos.get("nombre",""))) or sku
+            desc  = escape(val(campos.get("desc","")))
+            bloques.append(f'''<section class="cd-hero">
+  {img}
+  <div class="cd-hero-text">
+    <p class="cd-sku">SKU: {sku}</p>
+    <h2>{nom}</h2>
+    <p>{desc}</p>
+  </div>
+</section>''')
+
+        elif tipo == "text-photo":
+            txt  = escape(val(campos.get("texto","")))
+            img  = img_tag(campos.get("img",""), sku)
+            bloques.append(f'''<div class="cd-row">
+  <div class="cd-text"><p>{txt}</p></div>
+  {img}
+</div>''')
+
+        elif tipo == "photo-text":
+            img  = img_tag(campos.get("img",""), sku)
+            txt  = escape(val(campos.get("texto","")))
+            bloques.append(f'''<div class="cd-row cd-row-rev">
+  {img}
+  <div class="cd-text"><p>{txt}</p></div>
+</div>''')
+
+        elif tipo == "photo-full":
+            img   = img_tag(campos.get("img",""), sku)
+            extra = escape(val(campos.get("extra","")))
+            cap   = f'<p class="cd-caption">{extra}</p>' if extra else ""
+            bloques.append(f'''<div class="cd-full">
+  {img}
+  {cap}
+</div>''')
+
+    cuerpo = '\n<hr class="cd-divider"/>\n'.join(bloques)
+    nombre_titulo = escape(val(layout[0].get("campos",{}).get("nombre",""))) if layout else sku
 
     return f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>{nombre}</title>
-<style>{CSS}</style>
+<title>{nombre_titulo or sku}</title>
+<style>{CSS_HTML}</style>
 </head>
 <body>
-
-  <section class="cd-hero">
-    {hero_img}
-    <div class="cd-hero-text">
-      <p class="cd-sku">SKU: {sku}</p>
-      <h2>{nombre}</h2>
-      <p>{desc}</p>
-    </div>
-  </section>
-
-  <hr class="cd-divider"/>
-  {bloque_bp1_foto1}
-  <hr class="cd-divider"/>
-  {bloque_foto2_bp2}
-  <hr class="cd-divider"/>
-  {bloques_resto}
-
+{cuerpo}
 </body>
 </html>"""
 
 
-def generar_zip_html(df: pd.DataFrame, modo: str, campo_extra: str = "") -> bytes:
-    """Devuelve un ZIP en memoria con un HTML por fila del DataFrame."""
+def generar_zip_html(df: pd.DataFrame, layout: list) -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for _, fila in df.iterrows():
-            sku = str(fila.get("SKU", "sin_sku")).strip().replace("/", "_").replace(" ", "_")
-            html = _generar_html_fila(fila.to_dict(), modo, campo_extra)
+            sku  = str(fila.get("SKU","sin_sku")).strip().replace("/","_").replace(" ","_")
+            html = _generar_html_fila(fila.to_dict(), layout)
             zf.writestr(f"{sku}.html", html.encode("utf-8"))
     buf.seek(0)
     return buf.getvalue()
@@ -865,39 +825,133 @@ if st.session_state.get("df_resultado") is not None:
         key="dl_xlsx"
     )
 
-    # ── Botón ZIP HTMLs Cdiscount ─────────────────────────────
+    # ── Editor visual de layout HTML Cdiscount ───────────────
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("---")
-    st.markdown("#### 🌐 Generar HTMLs para Cdiscount")
-    st.caption(
-        "Estructura: **Hero** · **Texto izq / Foto dcha** · **Foto izq / Texto dcha** · "
-        "**Fotos sueltas + campo seleccionado**"
-    )
+    st.markdown("#### 🌐 Generador HTML Cdiscount")
 
-    # Selector de campo extra (aparece bajo cada foto suelta)
     cols_disponibles = [c for c in df_resultado.columns if c != "SKU"]
-    campo_extra = st.selectbox(
-        "Campo a mostrar bajo cada foto suelta:",
-        options=["(ninguno)"] + cols_disponibles,
-        index=0,
-        key="campo_extra_html",
-        help="Se mostrará como texto debajo de cada Enhanced Photo 03 en adelante."
-    )
-    campo_extra_val = "" if campo_extra == "(ninguno)" else campo_extra
+    # Primer producto como muestra para preview
+    muestra = df_resultado.iloc[0].to_dict() if len(df_resultado) > 0 else {}
 
-    if st.button("⚡ Generar ZIP de HTMLs", key="btn_html"):
-        with st.spinner("Generando HTMLs..."):
-            st.session_state["zip_html_bytes"] = generar_zip_html(
-                df_resultado,
-                st.session_state["resultado_modo"],
-                campo_extra_val
-            )
-            st.session_state["zip_html_count"] = len(df_resultado)
-            st.session_state["zip_html_campo"] = campo_extra_val
+    # Inicializar bloques en session_state
+    if "html_bloques" not in st.session_state:
+        st.session_state["html_bloques"] = []
+
+    TIPOS_BLOQUE = {
+        "hero":       "Hero (foto + nombre + descripción)",
+        "text-photo": "Texto izq · Foto dcha",
+        "photo-text": "Foto izq · Texto dcha",
+        "photo-full": "Foto ancho completo + campo texto",
+    }
+
+    # Barra de añadir bloques
+    col_btns = st.columns(4)
+    for i, (tipo, label) in enumerate(TIPOS_BLOQUE.items()):
+        with col_btns[i]:
+            if st.button(f"＋ {label}", key=f"add_{tipo}", use_container_width=True):
+                st.session_state["html_bloques"].append({"tipo": tipo, "campos": {}})
+                st.session_state.pop("zip_html_bytes", None)
+                st.rerun()
+
+    if not st.session_state["html_bloques"]:
+        st.info("Añade bloques desde los botones de arriba para construir la estructura del HTML.")
+    else:
+        bloques = st.session_state["html_bloques"]
+        to_delete = None
+        to_move   = None
+
+        for idx, bloque in enumerate(bloques):
+            tipo   = bloque["tipo"]
+            campos = bloque.setdefault("campos", {})
+
+            with st.container(border=True):
+                # Cabecera del bloque
+                hcol1, hcol2, hcol3, hcol4 = st.columns([3, 1, 1, 1])
+                with hcol1:
+                    st.markdown(f"**Bloque {idx+1} — {TIPOS_BLOQUE[tipo]}**")
+                with hcol2:
+                    if idx > 0 and st.button("↑", key=f"up_{idx}", use_container_width=True):
+                        to_move = (idx, idx-1)
+                with hcol3:
+                    if idx < len(bloques)-1 and st.button("↓", key=f"dn_{idx}", use_container_width=True):
+                        to_move = (idx, idx+1)
+                with hcol4:
+                    if st.button("🗑", key=f"del_{idx}", use_container_width=True):
+                        to_delete = idx
+
+                # Campos según tipo
+                def campo_selector(clave, label, es_imagen, idx=idx, campos=campos):
+                    opc = ["(ninguno)"] + cols_disponibles
+                    val_actual = campos.get(clave, "(ninguno)")
+                    if val_actual not in opc:
+                        val_actual = "(ninguno)"
+                    sel = st.selectbox(label, opc,
+                        index=opc.index(val_actual),
+                        key=f"sel_{idx}_{clave}")
+                    campos[clave] = sel
+
+                    # Preview del valor real
+                    val_real = muestra.get(sel, "") if sel != "(ninguno)" else ""
+                    url_real = _primera_url(str(val_real)) if val_real else ""
+                    if es_imagen and url_real and _es_url(url_real):
+                        st.image(url_real, width=180)
+                    elif val_real:
+                        st.caption(f"↳ {str(val_real)[:120]}")
+                    else:
+                        st.caption("↳ sin datos en la muestra")
+
+                if tipo == "hero":
+                    c1, c2, c3 = st.columns(3)
+                    with c1: campo_selector("img",    "Imagen hero",    True)
+                    with c2: campo_selector("nombre", "Nombre producto", False)
+                    with c3: campo_selector("desc",   "Descripción",    False)
+
+                elif tipo == "text-photo":
+                    c1, c2 = st.columns(2)
+                    with c1: campo_selector("texto", "Texto (izquierda)", False)
+                    with c2: campo_selector("img",   "Foto (derecha)",   True)
+
+                elif tipo == "photo-text":
+                    c1, c2 = st.columns(2)
+                    with c1: campo_selector("img",   "Foto (izquierda)", True)
+                    with c2: campo_selector("texto", "Texto (derecha)",  False)
+
+                elif tipo == "photo-full":
+                    c1, c2 = st.columns(2)
+                    with c1: campo_selector("img",   "Foto (ancho completo)", True)
+                    with c2: campo_selector("extra", "Campo texto debajo",    False)
+
+        # Aplicar reorden / borrado
+        if to_delete is not None:
+            st.session_state["html_bloques"].pop(to_delete)
+            st.session_state.pop("zip_html_bytes", None)
+            st.rerun()
+        if to_move is not None:
+            b = st.session_state["html_bloques"]
+            b[to_move[0]], b[to_move[1]] = b[to_move[1]], b[to_move[0]]
+            st.session_state.pop("zip_html_bytes", None)
+            st.rerun()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # Preview HTML con el primer producto
+        with st.expander("👁 Preview HTML — primer producto", expanded=False):
+            layout_actual = [{"tipo": b["tipo"], "campos": b["campos"]}
+                             for b in st.session_state["html_bloques"]]
+            html_preview = _generar_html_fila(muestra, layout_actual)
+            st.components.v1.html(html_preview, height=700, scrolling=True)
+
+        # Generar ZIP
+        if st.button("⚡ Generar ZIP de HTMLs", key="btn_html", use_container_width=True):
+            layout_final = [{"tipo": b["tipo"], "campos": b["campos"]}
+                            for b in st.session_state["html_bloques"]]
+            with st.spinner("Generando HTMLs..."):
+                st.session_state["zip_html_bytes"] = generar_zip_html(df_resultado, layout_final)
+                st.session_state["zip_html_count"] = len(df_resultado)
 
     if st.session_state.get("zip_html_bytes"):
-        campo_label = st.session_state.get("zip_html_campo") or "ninguno"
-        st.success(f"✅ {st.session_state['zip_html_count']} HTMLs listos · campo extra: **{campo_label}**")
+        st.success(f"✅ {st.session_state['zip_html_count']} HTMLs listos")
         st.download_button(
             label="⬇️ DESCARGAR ZIP (HTMLs Cdiscount)",
             data=st.session_state["zip_html_bytes"],
