@@ -825,11 +825,14 @@ if iniciar and st.session_state.skus_finales:
 
         if st.button("⚡ Generar ZIP de HTMLs", key="btn_html"):
             with st.spinner("Generando HTMLs..."):
-                zip_bytes = generar_zip_html(df_resultado, modo)
-            st.success(f"✅ {len(df_resultado)} HTMLs listos")
+                st.session_state["zip_html_bytes"] = generar_zip_html(df_resultado, modo)
+                st.session_state["zip_html_count"] = len(df_resultado)
+
+        if st.session_state.get("zip_html_bytes"):
+            st.success(f"✅ {st.session_state['zip_html_count']} HTMLs listos")
             st.download_button(
                 label="⬇️ DESCARGAR ZIP (HTMLs Cdiscount)",
-                data=zip_bytes,
+                data=st.session_state["zip_html_bytes"],
                 file_name="html_cdiscount.zip",
                 mime="application/zip",
                 key="dl_html_zip"
