@@ -232,6 +232,43 @@ TODOS_CAMPOS_PIM = sorted(list(dict.fromkeys([
 
 # ── Generador HTML Cdiscount ──────────────────────────────────
 
+CDN_TURACO      = "https://turaco.es/marketplaces/resources/imagenes"
+CDN_RESOLUCION  = "1000x1000"
+
+# Mapeo: nombre de campo Plytix → índice en el CDN de Turaco
+# Los campos de foto enriquecida _01.._06 corresponden a _1_.._6_
+_CAMPO_A_INDICE = {
+    # PIM
+    "foto_enriquecida_01": 1, "foto_enriquecida_02": 2,
+    "foto_enriquecida_03": 3, "foto_enriquecida_04": 4,
+    "foto_enriquecida_05": 5, "foto_enriquecida_06": 6,
+    "foto_master_producto_main_image_1000x1000_png_01": 1,
+    "foto_master_producto_main_image_1000x1000_png_02": 2,
+    "foto_image_gallery_11_jpg_01": 1, "foto_image_gallery_11_jpg_02": 2,
+    "foto_image_gallery_11_jpg_03": 3, "foto_image_gallery_11_jpg_04": 4,
+    "foto_image_gallery_11_jpg_05": 5, "foto_image_gallery_11_jpg_06": 6,
+    # Ecatalog
+    "Enhanced Photo 01": 1, "Enhanced Photo 02": 2,
+    "Enhanced Photo 03": 3, "Enhanced Photo 04": 4,
+    "Enhanced Photo 05": 5, "Enhanced Photo 06": 6,
+    "Enhanced Photo 07": 7, "Enhanced Photo 08": 8,
+    "1000x1000 JPG (Marketplace) 01": 1, "1000x1000 JPG (Marketplace) 02": 2,
+    "1000x1000 JPG (Marketplace) 03": 3, "1000x1000 JPG (Marketplace) 04": 4,
+    "1000x1000 JPG (Marketplace) 05": 5,
+    "Foto Image Gallery 1:1 JPG 01": 1, "Foto Image Gallery 1:1 JPG 02": 2,
+    "Foto Image Gallery 1:1 JPG 03": 3, "Foto Image Gallery 1:1 JPG 04": 4,
+    "Foto Image Gallery 1:1 JPG 05": 5, "Foto Image Gallery 1:1 JPG 06": 6,
+}
+
+
+def _url_turaco(sku_raw: str, campo: str, res: str = CDN_RESOLUCION) -> str:
+    """Construye la URL pública del CDN de Turaco para un campo de imagen."""
+    sku = sku_raw.strip()
+    idx = _CAMPO_A_INDICE.get(campo)
+    if not sku or idx is None:
+        return ""
+    return f"{CDN_TURACO}/{sku}/{sku}_{idx}_{res}.jpg"
+
 
 def _primera_url(valor):
     if not valor:
@@ -304,9 +341,20 @@ def _generar_html_fila(fila: dict, layout: list) -> str:
         return val(campo)
 
     def url_resuelta(campo, url_fija=""):
-        """Para imágenes: url_fija tiene prioridad, luego campo del df."""
+        """
+        Prioridad:
+        1. URL fija introducida manualmente
+        2. URL del CDN de Turaco (pública, válida para Cdiscount)
+        3. URL de Plytix como fallback (solo para preview interno)
+        """
         if url_fija and url_fija.strip().startswith("http"):
             return url_fija.strip()
+        # Intentar CDN Turaco con el SKU del producto
+        sku_raw = str(fila.get("SKU", "")).strip()
+        url_cdn = _url_turaco(sku_raw, campo)
+        if url_cdn:
+            return url_cdn
+        # Fallback: URL de Plytix (solo útil para preview, Cdiscount la rechazará)
         return _primera_url(val(campo))
 
     def img_tag(campo, url_fija="", alt="", css=""):
@@ -1115,7 +1163,6 @@ else:
                     st.session_state[modo_key] = modo
 
                     if modo == "campo":
-                        # Mostrar TODOS los campos descargados — el usuario elige
                         opc = ["(ninguno)"] + cols_disponibles
                         val_actual = campos.get(clave, "(ninguno)")
                         if val_actual not in opc:
@@ -1126,17 +1173,30 @@ else:
                             label_visibility="collapsed")
                         campos[clave]      = sel
                         campos[clave_fija] = ""
-                        val_real = muestra.get(sel, "") if sel != "(ninguno)" else ""
-                        url_real = _primera_url(str(val_real)) if val_real else ""
-                        if es_imagen and url_real and _es_url(url_real):
-                            st.image(url_real, width=160)
-                        elif val_real:
+
+                        if es_imagen and sel != "(ninguno)":
+                            # Mostrar la URL de Turaco que se usará realmente
+                            sku_muestra = str(muestra.get("SKU", "")).strip()
+                            url_cdn = _url_turaco(sku_muestra, sel) if sku_muestra else ""
+                            if url_cdn:
+                                st.image(url_cdn, width=160)
+                                st.markdown(
+                                    f'<div class="campo-preview-txt" style="font-size:0.7rem;word-break:break-all">✅ CDN: {url_cdn}</div>',
+                                    unsafe_allow_html=True)
+                            else:
+                                # Campo no mapeado al CDN — mostrar URL de Plytix como preview
+                                val_real = str(muestra.get(sel, "") or "")
+                                url_real = _primera_url(val_real)
+                                if url_real and _es_url(url_real):
+                                    st.image(url_real, width=160)
+                                st.markdown(
+                                    '<div class="campo-preview-vacio">⚠️ Campo no mapeado al CDN Turaco — añádelo a _CAMPO_A_INDICE</div>',
+                                    unsafe_allow_html=True)
+                        elif not es_imagen and sel != "(ninguno)":
+                            val_real = muestra.get(sel, "") if sel != "(ninguno)" else ""
                             _prev_html(val_real)
                         else:
-                            if sel != "(ninguno)":
-                                st.markdown('<div class="campo-preview-vacio">↳ campo vacío en la muestra</div>', unsafe_allow_html=True)
-                            else:
-                                st.markdown('<div class="campo-preview-vacio">↳ sin campo seleccionado</div>', unsafe_allow_html=True)
+                            st.markdown('<div class="campo-preview-vacio">↳ sin campo seleccionado</div>', unsafe_allow_html=True)
 
                     elif modo == "banco":
                         # Solo campos de imagen identificados automáticamente
