@@ -236,7 +236,23 @@ TODOS_CAMPOS_PIM = sorted(list(dict.fromkeys([
 def _primera_url(valor):
     if not valor:
         return ""
-    return str(valor).split(" | ")[0].strip()
+    raw = str(valor).split(" | ")[0].strip()
+    return _encodear_url(raw)
+
+
+def _encodear_url(url):
+    """Codifica espacios y caracteres no-ASCII en la URL sin tocar el esquema ni el host."""
+    if not url:
+        return ""
+    # Separar esquema+host del path
+    try:
+        from urllib.parse import urlsplit, urlunsplit, quote
+        parts = urlsplit(url)
+        # Encodear solo el path (espacios → %20, etc.), preservar slashes
+        path_enc = quote(parts.path, safe="/:@!$&'()*+,;=")
+        return urlunsplit((parts.scheme, parts.netloc, path_enc, parts.query, parts.fragment))
+    except Exception:
+        return url
 
 
 def _es_url(valor):
