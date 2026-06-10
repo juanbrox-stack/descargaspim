@@ -279,9 +279,10 @@ def _generar_html_fila(fila: dict, layout: list) -> str:
 
     def img_tag(campo, url_fija="", alt="", css=""):
         u = url_resuelta(campo, url_fija)
-        if not u:
-            return f'<div class="cd-nophoto">Sin imagen</div>'
-        return f'<img src="{u}" alt="{escape(alt)}" loading="lazy" {'class="'+css+'"' if css else ""}/> '
+        # Cdiscount exige URL absoluta — omitir si no la hay
+        if not u or not (u.startswith("https://") or u.startswith("http://")):
+            return ""
+        return f'<img src="{u}" alt="{escape(alt)}" loading="lazy" {'class="'+css+'"' if css else ""}/>'
 
     bloques = []
     for bloque in layout:
@@ -326,20 +327,11 @@ def _generar_html_fila(fila: dict, layout: list) -> str:
 </div>''')
 
     cuerpo = '\n<hr class="cd-divider"/>\n'.join(bloques)
-    nombre_titulo = escape(val(layout[0].get("campos",{}).get("nombre",""))) if layout else sku
 
-    return f"""<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>{nombre_titulo or sku}</title>
-<style>{CSS_HTML}</style>
-</head>
-<body>
-{cuerpo}
-</body>
-</html>"""
+    # Cdiscount espera solo el contenido — sin DOCTYPE, html, head ni style externos
+    # El CSS va inline en un <style> dentro del fragmento
+    return f"""<style>{CSS_HTML}</style>
+{cuerpo}"""
 
 
 def generar_zip_html(df: pd.DataFrame, layout: list) -> bytes:
@@ -1054,7 +1046,11 @@ if st.session_state.get("df_resultado") is not None:
         with st.expander("👁 Preview HTML — primer producto", expanded=False):
             layout_actual = [{"tipo": b["tipo"], "campos": b["campos"]}
                              for b in st.session_state["html_bloques"]]
-            html_preview = _generar_html_fila(muestra, layout_actual)
+            fragmento = _generar_html_fila(muestra, layout_actual)
+            # Para el preview necesitamos el HTML completo con estructura de documento
+            html_preview = f"""<!DOCTYPE html><html lang="fr"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+</head><body style="background:#fff;padding:16px">{fragmento}</body></html>"""
             st.components.v1.html(html_preview, height=700, scrolling=True)
 
         # Generar HTMLs
