@@ -28,7 +28,7 @@ CAMPOS_ECATALOG_DEFECTO = [
     "Product / Model Name",
     "1000x1000 JPG (Marketplace) 01",
     "1000x1000 JPG (Marketplace) 02",
-  "1000x1000 JPG (Marketplace) 03","1000x1000 JPG (Marketplace) 04","1000x1000 JPG (Marketplace) 05",
+    "1000x1000 JPG (Marketplace) 03","1000x1000 JPG (Marketplace) 04","1000x1000 JPG (Marketplace) 05",
     "Enhanced Photo 01",
     "Enhanced Photo 02",
     "Enhanced Photo 03",
@@ -38,9 +38,13 @@ CAMPOS_ECATALOG_DEFECTO = [
     "Foto Image Gallery 1:1 JPG 02",
     "Foto Image Gallery 1:1 JPG 03",
     "Foto Image Gallery 1:1 JPG 04",
-    "Foto Image Gallery 1:1 JPG 05","Enhanced Photo INT",
-    "Enhanced Photo TEXT ESP"
-    
+    "Foto Image Gallery 1:1 JPG 05",
+    "Enhanced Photo INT",
+    "Enhanced Photo TEXT ESP",
+    "bulletpoint_1_fr", "bulletpoint_2_fr", "bulletpoint_3_fr",
+    "bulletpoint_4_fr", "bulletpoint_5_fr",
+    "descripcion_corta_del_producto_fr",
+    "nombre_producto__modelo",
 ]
 
 TODOS_CAMPOS_ECATALOG = sorted([
@@ -645,12 +649,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Cards resumen
-c1, c2, c3, c4 = st.columns(4)
+c1, c2, c3, c4, c5 = st.columns(5)
 for col, icon, title, desc in [
-    (c1, "🔐", "Credenciales API", "Introduce tu API Key y Secret de Plytix"),
-    (c2, "🗄️", "Fuente de datos", "Elige entre PIM directo o Ecatalog/Channel con JPGs"),
-    (c3, "📂", "Carga tus SKUs", "Sube un Excel o pega los SKUs manualmente"),
-    (c4, "⬇️", "Descarga Excel", "Obtén el reporte con todos los atributos seleccionados"),
+    (c1, "🔐", "Credenciales",   "API Key y Secret de Plytix"),
+    (c2, "🗄️", "Campos",         "Selecciona qué campos descargar"),
+    (c3, "📂", "SKUs",            "Sube Excel o pega manualmente"),
+    (c4, "⬇️", "Descarga",        "Elige fuente e inicia la descarga"),
+    (c5, "🌐", "Genera HTML",     "Construye el layout para Cdiscount"),
 ]:
     with col:
         st.markdown(f"""
@@ -675,19 +680,13 @@ with col_izq:
         st.warning("⚠️ Plytix → Admin → API → Tu usuario")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ── PASO 2: FUENTE + CAMPOS ───────────────────────────────────
+# ── PASO 2: CAMPOS ────────────────────────────────────────────
 with col_der:
-    st.markdown('<div class="section-dark"><h3>🗄️ Paso 2 — Fuente de datos y campos</h3>', unsafe_allow_html=True)
+    st.markdown('<div class="section-dark"><h3>🗄️ Paso 2 — Campos a descargar</h3>', unsafe_allow_html=True)
 
-    modo = st.radio(
-        "Fuente de datos:",
-        options=["ecatalog", "pim"],
-        format_func=lambda x: "📦 Ecatalog/Channel — JPGs convertidos (recomendado)" if x == "ecatalog" else "🗃️ PIM directo — todos los atributos",
-        horizontal=True,
-        key="modo"
-    )
-
-    todos_campos = TODOS_CAMPOS_ECATALOG if modo == "ecatalog" else TODOS_CAMPOS_PIM
+    # Modo determina qué lista de campos mostrar — se usará también en el paso 4
+    modo = st.session_state.get("modo", "ecatalog")
+    todos_campos   = TODOS_CAMPOS_ECATALOG if modo == "ecatalog" else TODOS_CAMPOS_PIM
     defecto_campos = CAMPOS_ECATALOG_DEFECTO if modo == "ecatalog" else CAMPOS_PIM_DEFECTO
 
     if "ultimo_modo" not in st.session_state or st.session_state.ultimo_modo != modo:
@@ -712,7 +711,7 @@ with col_der:
         label=f"Campos a descargar ({len(todos_campos)} disponibles):",
         options=todos_campos,
         default=st.session_state.campos,
-        help="Escribe para filtrar. Selecciona varios antes de cerrar el desplegable.",
+        help="Escribe para filtrar. Los bulletpoint_X_fr ya están incluidos por defecto.",
         key="campos"
     )
 
@@ -783,7 +782,23 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ── PASO 4: DESCARGA ─────────────────────────────────────────
-st.markdown('<div class="section-dark"><h3>⬇️ Paso 4 — Iniciar descarga</h3>', unsafe_allow_html=True)
+st.markdown('<div class="section-dark"><h3>⬇️ Paso 4 — Fuente e iniciar descarga</h3>', unsafe_allow_html=True)
+
+modo = st.radio(
+    "Fuente de datos:",
+    options=["ecatalog", "pim"],
+    format_func=lambda x: "📦 Ecatalog/Channel — JPGs convertidos (recomendado)" if x == "ecatalog" else "🗃️ PIM directo — todos los atributos",
+    horizontal=True,
+    key="modo"
+)
+
+# Actualizar campos disponibles según la fuente elegida
+todos_campos   = TODOS_CAMPOS_ECATALOG if modo == "ecatalog" else TODOS_CAMPOS_PIM
+defecto_campos = CAMPOS_ECATALOG_DEFECTO if modo == "ecatalog" else CAMPOS_PIM_DEFECTO
+if "ultimo_modo" not in st.session_state or st.session_state.ultimo_modo != modo:
+    st.session_state.campos = defecto_campos[:]
+    st.session_state.ultimo_modo = modo
+    st.rerun()
 
 col_info, col_btn = st.columns([3, 1], gap="large")
 
@@ -802,7 +817,7 @@ with col_info:
         st.info("ℹ️ Completa los pasos anteriores para habilitar la descarga")
 
 with col_btn:
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<br><br>", unsafe_allow_html=True)
     can_run = bool(st.session_state.skus_finales) and bool(api_key) and bool(api_secret) and bool(campos_seleccionados)
     iniciar = st.button("⬇️ INICIAR DESCARGA", disabled=not can_run)
 
@@ -837,10 +852,12 @@ if iniciar and st.session_state.skus_finales:
         st.session_state["resultado_modo"] = modo
         st.session_state.pop("zip_html_bytes", None)   # limpiar ZIP anterior si había
 
-# ── RESULTADOS (fuera del if iniciar, persiste en session_state) ──
+# ── RESULTADOS ────────────────────────────────────────────────
 if st.session_state.get("df_resultado") is not None:
     df_resultado = st.session_state["df_resultado"]
 
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div class="section-dark"><h3>📊 Resultados descarga</h3>', unsafe_allow_html=True)
     st.success(f"✅ {len(df_resultado)} productos descargados")
 
     campos_con_datos = sum(1 for c in df_resultado.columns if df_resultado[c].astype(str).str.strip().ne("").any())
@@ -851,7 +868,7 @@ if st.session_state.get("df_resultado") is not None:
         <div class="stat-box"><span class="num">{campos_con_datos}</span><span class="lbl">Con datos</span></div>
     </div>""", unsafe_allow_html=True)
 
-    with st.expander("👁 Vista previa", expanded=True):
+    with st.expander("👁 Vista previa datos", expanded=False):
         st.dataframe(df_resultado.head(20), use_container_width=True)
 
     st.download_button(
@@ -861,6 +878,17 @@ if st.session_state.get("df_resultado") is not None:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="dl_xlsx"
     )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ── PASO 5: GENERAR HTML ───────────────────────────────────────
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown('<div class="section-dark"><h3>🌐 Paso 5 — Generar HTML para Cdiscount</h3>', unsafe_allow_html=True)
+
+if st.session_state.get("df_resultado") is None:
+    st.info("ℹ️ Completa los pasos 1–4 y descarga los datos para habilitar el generador de HTML.")
+    st.markdown('</div>', unsafe_allow_html=True)
+else:
+    df_resultado = st.session_state["df_resultado"]
 
     # ── Editor visual de layout HTML Cdiscount ───────────────
     st.markdown("<br>", unsafe_allow_html=True)
@@ -874,6 +902,16 @@ if st.session_state.get("df_resultado") is not None:
     cols_texto  = [c for c in cols_disponibles if c not in cols_imagen]
     # Primer producto como muestra para preview
     muestra = df_resultado.iloc[0].to_dict() if len(df_resultado) > 0 else {}
+
+    # Aviso si no hay bulletpoints descargados (campo de texto habitual para Cdiscount)
+    tiene_bullets = any("bulletpoint" in c.lower() for c in cols_disponibles)
+    if not tiene_bullets:
+        st.warning(
+            "⚠️ Los campos **bulletpoint** no están en los datos descargados. "
+            "Para usarlos en el HTML, vuelve al **Paso 2** y añade los campos "
+            "`bulletpoint_1_fr`, `bulletpoint_2_fr`... antes de descargar.",
+            icon="💡"
+        )
 
     # Inicializar bloques en session_state
     if "html_bloques" not in st.session_state:
@@ -957,7 +995,8 @@ if st.session_state.get("df_resultado") is not None:
                     st.session_state[modo_key] = modo
 
                     if modo == "campo":
-                        opc = ["(ninguno)"] + (cols_imagen if es_imagen else cols_disponibles)
+                        # Mostrar TODOS los campos descargados — el usuario elige
+                        opc = ["(ninguno)"] + cols_disponibles
                         val_actual = campos.get(clave, "(ninguno)")
                         if val_actual not in opc:
                             val_actual = "(ninguno)"
@@ -971,10 +1010,16 @@ if st.session_state.get("df_resultado") is not None:
                         url_real = _primera_url(str(val_real)) if val_real else ""
                         if es_imagen and url_real and _es_url(url_real):
                             st.image(url_real, width=160)
-                        else:
+                        elif val_real:
                             _prev_html(val_real)
+                        else:
+                            if sel != "(ninguno)":
+                                st.markdown('<div class="campo-preview-vacio">↳ campo vacío en la muestra</div>', unsafe_allow_html=True)
+                            else:
+                                st.markdown('<div class="campo-preview-vacio">↳ sin campo seleccionado</div>', unsafe_allow_html=True)
 
                     elif modo == "banco":
+                        # Solo campos de imagen identificados automáticamente
                         opc_banco = ["(ninguno)"] + cols_imagen
                         val_actual = campos.get(clave, "(ninguno)")
                         if val_actual not in opc_banco:
@@ -990,7 +1035,7 @@ if st.session_state.get("df_resultado") is not None:
                         if url_real and _es_url(url_real):
                             st.image(url_real, width=160)
                         else:
-                            _prev_html(val_real, es_imagen=True)
+                            st.markdown('<div class="campo-preview-vacio">↳ sin imagen en la muestra</div>', unsafe_allow_html=True)
 
                     else:  # fijo
                         placeholder = "https://cdn.cecotec.com/img.jpg" if es_imagen else "Escribe el texto fijo..."
@@ -1136,3 +1181,4 @@ if st.session_state.get("df_resultado") is not None:
                 if st.button("Siguiente ▶", key="nav_next", use_container_width=True):
                     st.session_state["sku_copiar_sel"] = skus_lista[idx_sel + 1]
                     st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
