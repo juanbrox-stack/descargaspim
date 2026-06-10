@@ -103,6 +103,10 @@ TODOS_CAMPOS_ECATALOG = sorted([
     "Product / Model Name",
     "Reference",
     "Technical Data Sheet (Product Data)",
+    "bulletpoint_1_fr", "bulletpoint_2_fr", "bulletpoint_3_fr",
+    "bulletpoint_4_fr", "bulletpoint_5_fr",
+    "descripcion_corta_del_producto_fr",
+    "nombre_producto__modelo",
 ])
 
 # ============================================================
@@ -707,10 +711,12 @@ with col_der:
             st.session_state.campos = defecto_campos[:]
             st.rerun()
 
+    # Filtrar el default para que solo contenga campos que existen en options
+    default_valido = [c for c in st.session_state.campos if c in todos_campos]
     campos_seleccionados = st.multiselect(
         label=f"Campos a descargar ({len(todos_campos)} disponibles):",
         options=todos_campos,
-        default=st.session_state.campos,
+        default=default_valido,
         help="Escribe para filtrar. Los bulletpoint_X_fr ya están incluidos por defecto.",
         key="campos"
     )
