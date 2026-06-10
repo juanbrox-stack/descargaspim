@@ -233,7 +233,7 @@ TODOS_CAMPOS_PIM = sorted(list(dict.fromkeys([
 # ── Generador HTML Cdiscount ──────────────────────────────────
 
 CDN_TURACO      = "https://turaco.es/marketplaces/resources/imagenes"
-CDN_RESOLUCION  = "1000x1000"
+CDN_RESOLUCION  = "1500x1500"
 
 # Mapeo: nombre de campo Plytix → índice en el CDN de Turaco
 # Los campos de foto enriquecida _01.._06 corresponden a _1_.._6_
@@ -1068,16 +1068,24 @@ else:
     cols_imagen = [c for c in cols_disponibles if any(k in c.lower() for k in
         ["jpg","png","photo","foto","image","img","banner","enhanced","gallery","1000x","2000x","hq"])]
     cols_texto  = [c for c in cols_disponibles if c not in cols_imagen]
-    # Primer producto como muestra para preview
-    muestra = df_resultado.iloc[0].to_dict() if len(df_resultado) > 0 else {}
 
-    # Aviso si no hay bulletpoints descargados (campo de texto habitual para Cdiscount)
+    # Selector de producto de muestra para preview
+    skus_disponibles = df_resultado["SKU"].astype(str).tolist()
+    sku_muestra_sel = st.selectbox(
+        "Producto de muestra para preview:",
+        options=skus_disponibles,
+        key="sku_muestra_preview",
+        help="Elige qué producto usar como muestra en los previews del editor."
+    )
+    idx_muestra = skus_disponibles.index(sku_muestra_sel) if sku_muestra_sel in skus_disponibles else 0
+    muestra = df_resultado.iloc[idx_muestra].to_dict()
+
+    # Aviso si no hay bulletpoints descargados
     tiene_bullets = any("bulletpoint" in c.lower() for c in cols_disponibles)
     if not tiene_bullets:
         st.warning(
             "⚠️ Los campos **bulletpoint** no están en los datos descargados. "
-            "Para usarlos en el HTML, vuelve al **Paso 2** y añade los campos "
-            "`bulletpoint_1_fr`, `bulletpoint_2_fr`... antes de descargar.",
+            "Usa el modo **Híbrido** en el Paso 4 para incluirlos automáticamente.",
             icon="💡"
         )
 
@@ -1193,8 +1201,21 @@ else:
                                     '<div class="campo-preview-vacio">⚠️ Campo no mapeado al CDN Turaco — añádelo a _CAMPO_A_INDICE</div>',
                                     unsafe_allow_html=True)
                         elif not es_imagen and sel != "(ninguno)":
-                            val_real = muestra.get(sel, "") if sel != "(ninguno)" else ""
-                            _prev_html(val_real)
+                            if sel not in muestra:
+                                st.markdown(
+                                    f'<div class="campo-preview-vacio">⚠️ "{sel}" no está en los datos descargados — usa modo Híbrido</div>',
+                                    unsafe_allow_html=True)
+                            else:
+                                val_real = str(muestra.get(sel, "") or "")
+                                # Avisar si se ha seleccionado un campo de imagen en un slot de texto
+                                if val_real and _es_url(val_real.split(" | ")[0].strip()):
+                                    st.markdown(
+                                        '<div class="campo-preview-vacio">⚠️ Este campo contiene una URL de imagen, no texto</div>',
+                                        unsafe_allow_html=True)
+                                elif val_real:
+                                    _prev_html(val_real)
+                                else:
+                                    st.markdown('<div class="campo-preview-vacio">↳ campo vacío en este producto</div>', unsafe_allow_html=True)
                         else:
                             st.markdown('<div class="campo-preview-vacio">↳ sin campo seleccionado</div>', unsafe_allow_html=True)
 
