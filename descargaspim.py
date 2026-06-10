@@ -363,62 +363,140 @@ if "campos" not in st.session_state:
 if "modo" not in st.session_state:
     st.session_state.modo = "ecatalog"
 
+# Colores corporativos Cecotec
+CC_TURQUESA = "#3EB1C8"
+CC_NEGRO    = "#141413"
+CC_FONDO    = "#FAF9F5"
+
 # ── CSS ──────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; background: #0a0a0a; color: #ffffff; }
-.stApp { background: #0a0a0a; }
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; background: #141413; color: #FAF9F5; }
+.stApp { background: #141413; }
 #MainMenu, footer, header { visibility: hidden; }
 .block-container { padding: 2rem 2.5rem 3rem !important; max-width: 1400px !important; }
-.turaco-header h1 { font-size: 2.2rem; font-weight: 800; color: #ffffff; margin: 0 0 0.8rem 0; }
-.turaco-banner { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 0.85rem 1.2rem; font-size: 0.9rem; color: #cccccc; margin-bottom: 1.2rem; }
-.turaco-banner b { color: #ffffff; }
-.card-white { background: #f5f5f5; border-radius: 14px; padding: 1.8rem 1.5rem 1.4rem; text-align: center; border: 1px solid #e0e0e0; min-height: 160px; }
+
+/* Header y banner */
+.turaco-header h1 { font-size: 2.2rem; font-weight: 800; color: #FAF9F5; margin: 0 0 0.8rem 0; }
+.turaco-banner { background: #1e1e1c; border: 1px solid #2e2e2c; border-radius: 8px; padding: 0.85rem 1.2rem; font-size: 0.9rem; color: #b0b0a8; margin-bottom: 1.2rem; }
+.turaco-banner b { color: #FAF9F5; }
+
+/* Cards resumen */
+.card-white { background: #FAF9F5; border-radius: 14px; padding: 1.8rem 1.5rem 1.4rem; text-align: center; border: 1px solid #ddddd5; min-height: 160px; }
 .card-white .card-icon { font-size: 2.2rem; margin-bottom: 0.7rem; }
-.card-white .card-title { font-size: 1rem; font-weight: 700; color: #111; margin-bottom: 0.4rem; }
-.card-white .card-desc { font-size: 0.8rem; color: #666; line-height: 1.4; }
-.section-dark { background: #111111; border: 1px solid #222; border-radius: 14px; padding: 1.5rem 1.8rem; margin-bottom: 1.2rem; }
-.section-dark h3 { color: #ffffff !important; font-size: 1rem; font-weight: 700; margin: 0 0 1rem 0; }
+.card-white .card-title { font-size: 1rem; font-weight: 700; color: #141413; margin-bottom: 0.4rem; }
+.card-white .card-desc { font-size: 0.8rem; color: #555; line-height: 1.4; }
+
+/* Secciones */
+.section-dark { background: #1e1e1c; border: 1px solid #2e2e2c; border-radius: 14px; padding: 1.5rem 1.8rem; margin-bottom: 1.2rem; }
+.section-dark h3 { color: #FAF9F5 !important; font-size: 1rem; font-weight: 700; margin: 0 0 1rem 0; }
+
+/* Stats */
 .stat-row { display: flex; gap: 1rem; margin: 1rem 0; }
-.stat-box { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 1rem 1.2rem; flex: 1; text-align: center; }
-.stat-box .num { font-size: 2rem; font-weight: 800; color: #22d3c5; display: block; line-height: 1; }
+.stat-box { background: #1e1e1c; border: 1px solid #2e2e2c; border-radius: 10px; padding: 1rem 1.2rem; flex: 1; text-align: center; }
+.stat-box .num { font-size: 2rem; font-weight: 800; color: #3EB1C8; display: block; line-height: 1; }
 .stat-box .lbl { font-size: 0.72rem; color: #888; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 0.3rem; display: block; }
-.badge-ecatalog { background: #22d3c5; color: #000; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+
+/* Badges */
+.badge-ecatalog { background: #3EB1C8; color: #141413; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
 .badge-pim { background: #6366f1; color: #fff; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
-.stButton > button { background: #22d3c5 !important; color: #000000 !important; border: none !important; border-radius: 8px !important; font-weight: 700 !important; font-size: 0.85rem !important; padding: 0.55rem 1.4rem !important; transition: all 0.2s !important; width: 100% !important; }
-.stButton > button:hover { background: #1ab5a8 !important; transform: translateY(-1px) !important; box-shadow: 0 4px 15px rgba(34,211,197,0.3) !important; }
-.stButton > button:disabled { background: #333 !important; color: #666 !important; }
-.stTextInput > div > div > input, .stTextArea > div > div > textarea { background: #1a1a1a !important; border: 1.5px solid #333 !important; color: #ffffff !important; border-radius: 8px !important; font-size: 0.9rem !important; }
-.stTextInput > div > div > input:focus, .stTextArea > div > div > textarea:focus { border-color: #22d3c5 !important; box-shadow: 0 0 0 2px rgba(34,211,197,0.2) !important; }
-label { color: #aaaaaa !important; font-size: 0.82rem !important; font-weight: 600 !important; }
-[data-testid="stFileUploader"] { background: #111 !important; border: 2px dashed #333 !important; border-radius: 12px !important; }
-[data-baseweb="select"] > div { background: #1a1a1a !important; border-color: #333 !important; color: #fff !important; }
-[data-baseweb="select"] input { background: transparent !important; color: #ffffff !important; caret-color: #22d3c5 !important; }
-[data-baseweb="tag"] {
-    background: #22d3c5 !important;
-    color: #000 !important;
-    font-weight: 600 !important;
-    max-width: none !important;
-    white-space: nowrap !important;
-    overflow: visible !important;
-}
-[data-baseweb="tag"] span[data-baseweb="tag-text"] {
-    overflow: visible !important;
-    text-overflow: unset !important;
-    white-space: nowrap !important;
-    max-width: none !important;
-    font-size: 0.78rem !important;
-}
-[data-baseweb="menu"] { background: #1a1a1a !important; border: 1px solid #333 !important; }
-[data-baseweb="menu"] li { color: #ffffff !important; }
-[data-baseweb="menu"] li:hover { background: #2a2a2a !important; color: #22d3c5 !important; }
-.stTabs [data-baseweb="tab-list"] { background: #111; border-radius: 10px; padding: 4px; gap: 4px; border: 1px solid #222; }
+
+/* Botones */
+.stButton > button { background: #3EB1C8 !important; color: #141413 !important; border: none !important; border-radius: 8px !important; font-weight: 700 !important; font-size: 0.85rem !important; padding: 0.55rem 1.4rem !important; transition: all 0.2s !important; width: 100% !important; }
+.stButton > button:hover { background: #2d9db3 !important; transform: translateY(-1px) !important; box-shadow: 0 4px 15px rgba(62,177,200,0.35) !important; }
+.stButton > button:disabled { background: #2e2e2c !important; color: #666 !important; }
+
+/* Inputs */
+.stTextInput > div > div > input, .stTextArea > div > div > textarea { background: #1e1e1c !important; border: 1.5px solid #3a3a38 !important; color: #FAF9F5 !important; border-radius: 8px !important; font-size: 0.9rem !important; }
+.stTextInput > div > div > input:focus, .stTextArea > div > div > textarea:focus { border-color: #3EB1C8 !important; box-shadow: 0 0 0 2px rgba(62,177,200,0.25) !important; }
+
+/* Labels globales */
+label { color: #c0c0b8 !important; font-size: 0.82rem !important; font-weight: 600 !important; }
+
+/* File uploader */
+[data-testid="stFileUploader"] { background: #1e1e1c !important; border: 2px dashed #3a3a38 !important; border-radius: 12px !important; }
+
+/* Select */
+[data-baseweb="select"] > div { background: #1e1e1c !important; border-color: #3a3a38 !important; color: #FAF9F5 !important; }
+[data-baseweb="select"] input { background: transparent !important; color: #FAF9F5 !important; caret-color: #3EB1C8 !important; }
+[data-baseweb="tag"] { background: #3EB1C8 !important; color: #141413 !important; font-weight: 600 !important; max-width: none !important; white-space: nowrap !important; overflow: visible !important; }
+[data-baseweb="tag"] span[data-baseweb="tag-text"] { overflow: visible !important; text-overflow: unset !important; white-space: nowrap !important; max-width: none !important; font-size: 0.78rem !important; }
+[data-baseweb="menu"] { background: #1e1e1c !important; border: 1px solid #3a3a38 !important; }
+[data-baseweb="menu"] li { color: #FAF9F5 !important; }
+[data-baseweb="menu"] li:hover { background: #2e2e2c !important; color: #3EB1C8 !important; }
+
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] { background: #1e1e1c; border-radius: 10px; padding: 4px; gap: 4px; border: 1px solid #2e2e2c; }
 .stTabs [data-baseweb="tab"] { background: transparent !important; color: #888 !important; border-radius: 7px !important; font-weight: 600 !important; font-size: 0.85rem !important; }
-.stTabs [aria-selected="true"] { background: #22d3c5 !important; color: #000 !important; }
-.stProgress > div > div > div { background: #22d3c5 !important; }
+.stTabs [aria-selected="true"] { background: #3EB1C8 !important; color: #141413 !important; }
+
+/* Progress, radio, hr */
+.stProgress > div > div > div { background: #3EB1C8 !important; }
 .stRadio > div { gap: 1rem !important; }
-hr { border-color: #222 !important; margin: 1.5rem 0 !important; }
+.stRadio label { color: #FAF9F5 !important; font-size: 0.82rem !important; }
+hr { border-color: #2e2e2c !important; margin: 1.5rem 0 !important; }
+
+/* ── Editor de bloques HTML ──────────────────────────────── */
+/* Container de cada bloque */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    background: #FAF9F5 !important;
+    border-radius: 10px !important;
+    padding: 4px !important;
+}
+/* Labels dentro del editor de bloques — texto oscuro sobre fondo claro */
+[data-testid="stVerticalBlockBorderWrapper"] label {
+    color: #141413 !important;
+    font-weight: 600 !important;
+}
+/* Selects dentro del editor */
+[data-testid="stVerticalBlockBorderWrapper"] [data-baseweb="select"] > div {
+    background: #ffffff !important;
+    border-color: #c8c8c0 !important;
+    color: #141413 !important;
+}
+[data-testid="stVerticalBlockBorderWrapper"] [data-baseweb="select"] [data-baseweb="select"] span,
+[data-testid="stVerticalBlockBorderWrapper"] [data-baseweb="select"] div[data-baseweb="select"] {
+    color: #141413 !important;
+}
+/* Textarea dentro del editor */
+[data-testid="stVerticalBlockBorderWrapper"] .stTextArea > div > div > textarea {
+    background: #ffffff !important;
+    border-color: #c8c8c0 !important;
+    color: #141413 !important;
+}
+/* Radio dentro del editor */
+[data-testid="stVerticalBlockBorderWrapper"] .stRadio label {
+    color: #141413 !important;
+    font-size: 0.8rem !important;
+}
+/* Caption/preview text dentro del editor */
+[data-testid="stVerticalBlockBorderWrapper"] p,
+[data-testid="stVerticalBlockBorderWrapper"] small,
+[data-testid="stVerticalBlockBorderWrapper"] .stCaptionContainer p {
+    color: #141413 !important;
+}
+/* Headings dentro del editor */
+[data-testid="stVerticalBlockBorderWrapper"] h1,
+[data-testid="stVerticalBlockBorderWrapper"] h2,
+[data-testid="stVerticalBlockBorderWrapper"] h3,
+[data-testid="stVerticalBlockBorderWrapper"] strong {
+    color: #141413 !important;
+}
+/* Botones dentro del editor (subir/bajar/borrar) */
+[data-testid="stVerticalBlockBorderWrapper"] .stButton > button {
+    background: #141413 !important;
+    color: #FAF9F5 !important;
+}
+[data-testid="stVerticalBlockBorderWrapper"] .stButton > button:hover {
+    background: #3EB1C8 !important;
+    color: #141413 !important;
+}
+/* Acento turquesa en radio seleccionado */
+[data-testid="stVerticalBlockBorderWrapper"] [data-baseweb="radio"] [data-checked="true"] div {
+    background: #3EB1C8 !important;
+    border-color: #3EB1C8 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
