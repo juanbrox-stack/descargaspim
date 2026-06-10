@@ -893,9 +893,9 @@ if "ultimo_modo" not in st.session_state or st.session_state.ultimo_modo != modo
 
 if modo == "hibrido":
     st.info(
-        f"Se descargarán los campos seleccionados del **Ecatalog** (imágenes) "
-        f"más estos campos del **PIM** automáticamente: "
-        f"`{'`, `'.join(CAMPOS_PIM_HIBRIDO)}`"
+        "Se descargarán los campos de imagen del **Ecatalog** seleccionados arriba "
+        f"+ **todos los atributos del PIM** ({len(TODOS_CAMPOS_PIM)} campos). "
+        "El resultado se combina en un único df listo para el generador de HTML."
     )
 
 col_info, col_btn = st.columns([3, 1], gap="large")
@@ -932,12 +932,10 @@ if iniciar and st.session_state.skus_finales:
             campos_seleccionados, progress_bar, status_text
         )
     elif modo == "hibrido":
-        # Separar qué campos van a ecatalog y cuáles al PIM
-        campos_ec  = [c for c in campos_seleccionados if c not in CAMPOS_PIM_HIBRIDO]
-        campos_pim = CAMPOS_PIM_HIBRIDO  # siempre se añaden en híbrido
+        campos_ec = [c for c in campos_seleccionados if c in TODOS_CAMPOS_ECATALOG]
         df_resultado, error = ejecutar_descarga_hibrida(
             st.session_state.skus_finales, api_key, api_secret,
-            campos_ec, campos_pim, progress_bar, status_text
+            campos_ec, TODOS_CAMPOS_PIM, progress_bar, status_text
         )
     else:
         df_resultado, error = ejecutar_descarga_pim(
