@@ -265,8 +265,20 @@ def _generar_html_fila(fila: dict, layout: list) -> str:
         v = str(fila.get(campo, "") or "").strip()
         return v
 
-    def img_tag(campo, alt="", css=""):
-        u = _primera_url(val(campo))
+    def val_resuelto(campo, fijo=""):
+        """Devuelve fijo si existe, si no el valor del campo del df."""
+        if fijo and fijo.strip():
+            return fijo.strip()
+        return val(campo)
+
+    def url_resuelta(campo, url_fija=""):
+        """Para imágenes: url_fija tiene prioridad, luego campo del df."""
+        if url_fija and url_fija.strip().startswith("http"):
+            return url_fija.strip()
+        return _primera_url(val(campo))
+
+    def img_tag(campo, url_fija="", alt="", css=""):
+        u = url_resuelta(campo, url_fija)
         if not u:
             return f'<div class="cd-nophoto">Sin imagen</div>'
         return f'<img src="{u}" alt="{escape(alt)}" loading="lazy" {'class="'+css+'"' if css else ""}/> '
@@ -277,37 +289,36 @@ def _generar_html_fila(fila: dict, layout: list) -> str:
         campos = bloque.get("campos", {})
 
         if tipo == "hero":
-            img   = img_tag(campos.get("img",""), sku)
-            nom   = escape(val(campos.get("nombre",""))) or sku
-            desc  = escape(val(campos.get("desc","")))
+            img   = img_tag(campos.get("img",""), campos.get("img",""), sku)
+            nom   = escape(val_resuelto(campos.get("nombre",""), campos.get("nombre_fijo",""))) or sku
+            desc  = escape(val_resuelto(campos.get("desc",""), campos.get("desc_fijo","")))
             bloques.append(f'''<section class="cd-hero">
   {img}
   <div class="cd-hero-text">
-    <p class="cd-sku">SKU: {sku}</p>
     <h2>{nom}</h2>
     <p>{desc}</p>
   </div>
 </section>''')
 
         elif tipo == "text-photo":
-            txt  = escape(val(campos.get("texto","")))
-            img  = img_tag(campos.get("img",""), sku)
+            txt  = escape(val_resuelto(campos.get("texto",""), campos.get("texto_fijo","")))
+            img  = img_tag(campos.get("img",""), campos.get("img_fija",""), sku)
             bloques.append(f'''<div class="cd-row">
   <div class="cd-text"><p>{txt}</p></div>
   {img}
 </div>''')
 
         elif tipo == "photo-text":
-            img  = img_tag(campos.get("img",""), sku)
-            txt  = escape(val(campos.get("texto","")))
+            img  = img_tag(campos.get("img",""), campos.get("img_fija",""), sku)
+            txt  = escape(val_resuelto(campos.get("texto",""), campos.get("texto_fijo","")))
             bloques.append(f'''<div class="cd-row cd-row-rev">
   {img}
   <div class="cd-text"><p>{txt}</p></div>
 </div>''')
 
         elif tipo == "photo-full":
-            img   = img_tag(campos.get("img",""), sku)
-            extra = escape(val(campos.get("extra","")))
+            img   = img_tag(campos.get("img",""), campos.get("img_fija",""), sku)
+            extra = escape(val_resuelto(campos.get("extra",""), campos.get("extra_fijo","")))
             cap   = f'<p class="cd-caption">{extra}</p>' if extra else ""
             bloques.append(f'''<div class="cd-full">
   {img}
@@ -831,6 +842,10 @@ if st.session_state.get("df_resultado") is not None:
     st.markdown("#### 🌐 Generador HTML Cdiscount")
 
     cols_disponibles = [c for c in df_resultado.columns if c != "SKU"]
+    # Campos de imagen del banco (ecatalog tiene JPGs directos)
+    cols_imagen = [c for c in cols_disponibles if any(k in c.lower() for k in
+        ["jpg","png","photo","foto","image","img","banner","enhanced","gallery","1000x","2000x","hq"])]
+    cols_texto  = [c for c in cols_disponibles if c not in cols_imagen]
     # Primer producto como muestra para preview
     muestra = df_resultado.iloc[0].to_dict() if len(df_resultado) > 0 else {}
 
@@ -880,26 +895,77 @@ if st.session_state.get("df_resultado") is not None:
                     if st.button("🗑", key=f"del_{idx}", use_container_width=True):
                         to_delete = idx
 
-                # Campos según tipo
+                # Campos según tipo — cada campo tiene 3 modos
                 def campo_selector(clave, label, es_imagen, idx=idx, campos=campos):
-                    opc = ["(ninguno)"] + cols_disponibles
-                    val_actual = campos.get(clave, "(ninguno)")
-                    if val_actual not in opc:
-                        val_actual = "(ninguno)"
-                    sel = st.selectbox(label, opc,
-                        index=opc.index(val_actual),
-                        key=f"sel_{idx}_{clave}")
-                    campos[clave] = sel
+                    clave_fija = f"{clave}_fijo" if not es_imagen else "img_fija" if clave == "img" else f"{clave}_fijo"
+                    modo_key   = f"modo_{idx}_{clave}"
+                    if modo_key not in st.session_state:
+                        st.session_state[modo_key] = "campo"
 
-                    # Preview del valor real
-                    val_real = muestra.get(sel, "") if sel != "(ninguno)" else ""
-                    url_real = _primera_url(str(val_real)) if val_real else ""
-                    if es_imagen and url_real and _es_url(url_real):
-                        st.image(url_real, width=180)
-                    elif val_real:
-                        st.caption(f"↳ {str(val_real)[:120]}")
-                    else:
-                        st.caption("↳ sin datos en la muestra")
+                    modo_opts  = ["campo", "fijo", "banco"] if es_imagen else ["campo", "fijo"]
+                    modo_labels = {"campo": "📋 Campo PIM/Ecatalog", "fijo": "✏️ Texto/URL fijo", "banco": "🖼 Banco de imágenes"}
+                    modo = st.radio(label,
+                        options=modo_opts,
+                        format_func=lambda x: modo_labels[x],
+                        index=modo_opts.index(st.session_state[modo_key]),
+                        key=f"radio_{idx}_{clave}",
+                        horizontal=True)
+                    st.session_state[modo_key] = modo
+
+                    if modo == "campo":
+                        # Selector de campo del df
+                        opc = ["(ninguno)"] + (cols_imagen if es_imagen else cols_disponibles)
+                        val_actual = campos.get(clave, "(ninguno)")
+                        if val_actual not in opc:
+                            val_actual = "(ninguno)"
+                        sel = st.selectbox("", opc,
+                            index=opc.index(val_actual),
+                            key=f"sel_{idx}_{clave}",
+                            label_visibility="collapsed")
+                        campos[clave]       = sel
+                        campos[clave_fija]  = ""
+                        val_real  = muestra.get(sel, "") if sel != "(ninguno)" else ""
+                        url_real  = _primera_url(str(val_real)) if val_real else ""
+                        if es_imagen and url_real and _es_url(url_real):
+                            st.image(url_real, width=160)
+                        elif val_real:
+                            st.caption(f"↳ {str(val_real)[:120]}")
+                        else:
+                            st.caption("↳ sin datos en la muestra")
+
+                    elif modo == "banco":
+                        # Selector solo de campos de imagen del banco
+                        opc_banco = ["(ninguno)"] + cols_imagen
+                        val_actual = campos.get(clave, "(ninguno)")
+                        if val_actual not in opc_banco:
+                            val_actual = "(ninguno)"
+                        sel = st.selectbox("", opc_banco,
+                            index=opc_banco.index(val_actual),
+                            key=f"banco_{idx}_{clave}",
+                            label_visibility="collapsed")
+                        campos[clave]       = sel
+                        campos[clave_fija]  = ""
+                        val_real = muestra.get(sel, "") if sel != "(ninguno)" else ""
+                        url_real = _primera_url(str(val_real)) if val_real else ""
+                        if url_real and _es_url(url_real):
+                            st.image(url_real, width=160)
+                        else:
+                            st.caption("↳ sin datos en la muestra")
+
+                    else:  # fijo
+                        placeholder = "https://cdn.cecotec.com/img.jpg" if es_imagen else "Escribe el texto fijo..."
+                        fijo_actual = campos.get(clave_fija, "")
+                        fijo = st.text_area("", value=fijo_actual,
+                            placeholder=placeholder,
+                            height=80,
+                            key=f"fijo_{idx}_{clave}",
+                            label_visibility="collapsed")
+                        campos[clave_fija]  = fijo
+                        campos[clave]       = ""
+                        if es_imagen and fijo and _es_url(fijo.split()[0]):
+                            st.image(fijo.strip().split()[0], width=160)
+                        elif fijo:
+                            st.caption(f"↳ {fijo[:120]}")
 
                 if tipo == "hero":
                     c1, c2, c3 = st.columns(3)
