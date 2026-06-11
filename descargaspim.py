@@ -3,8 +3,6 @@ import requests
 import pandas as pd
 import time
 import io
-import zipfile
-from html import escape
 import warnings
 from urllib3.exceptions import InsecureRequestWarning
 
@@ -20,14 +18,6 @@ requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
 ECATALOG_ID = "6531422065345fbf54877ad5"
 
-# Campos PIM que se añaden automáticamente en modo híbrido (ecatalog + PIM)
-CAMPOS_PIM_HIBRIDO = [
-    "nombre_producto__modelo",
-    "descripcion_corta_del_producto_fr",
-    "bulletpoint_1_fr", "bulletpoint_2_fr", "bulletpoint_3_fr",
-    "bulletpoint_4_fr", "bulletpoint_5_fr",
-]
-
 # ============================================================
 # CAMPOS ECATALOG — nombres exactos del channel
 # ============================================================
@@ -36,7 +26,7 @@ CAMPOS_ECATALOG_DEFECTO = [
     "Product / Model Name",
     "1000x1000 JPG (Marketplace) 01",
     "1000x1000 JPG (Marketplace) 02",
-    "1000x1000 JPG (Marketplace) 03","1000x1000 JPG (Marketplace) 04","1000x1000 JPG (Marketplace) 05",
+  "1000x1000 JPG (Marketplace) 03","1000x1000 JPG (Marketplace) 04","1000x1000 JPG (Marketplace) 05",
     "Enhanced Photo 01",
     "Enhanced Photo 02",
     "Enhanced Photo 03",
@@ -46,13 +36,9 @@ CAMPOS_ECATALOG_DEFECTO = [
     "Foto Image Gallery 1:1 JPG 02",
     "Foto Image Gallery 1:1 JPG 03",
     "Foto Image Gallery 1:1 JPG 04",
-    "Foto Image Gallery 1:1 JPG 05",
-    "Enhanced Photo INT",
-    "Enhanced Photo TEXT ESP",
-    "bulletpoint_1_fr", "bulletpoint_2_fr", "bulletpoint_3_fr",
-    "bulletpoint_4_fr", "bulletpoint_5_fr",
-    "descripcion_corta_del_producto_fr",
-    "nombre_producto__modelo",
+    "Foto Image Gallery 1:1 JPG 05","Enhanced Photo INT",
+    "Enhanced Photo TEXT ESP"
+    
 ]
 
 TODOS_CAMPOS_ECATALOG = sorted([
@@ -111,10 +97,6 @@ TODOS_CAMPOS_ECATALOG = sorted([
     "Product / Model Name",
     "Reference",
     "Technical Data Sheet (Product Data)",
-    "bulletpoint_1_fr", "bulletpoint_2_fr", "bulletpoint_3_fr",
-    "bulletpoint_4_fr", "bulletpoint_5_fr",
-    "descripcion_corta_del_producto_fr",
-    "nombre_producto__modelo",
 ])
 
 # ============================================================
@@ -229,202 +211,6 @@ TODOS_CAMPOS_PIM = sorted(list(dict.fromkeys([
 ])))
 
 
-
-# ── Generador HTML Cdiscount ──────────────────────────────────
-
-CDN_TURACO      = "https://turaco.es/marketplaces/resources/imagenes"
-CDN_RESOLUCION  = "1500x1500"
-
-# Mapeo: nombre de campo Plytix → índice en el CDN de Turaco
-# Los campos de foto enriquecida _01.._06 corresponden a _1_.._6_
-_CAMPO_A_INDICE = {
-    # PIM
-    "foto_enriquecida_01": 1, "foto_enriquecida_02": 2,
-    "foto_enriquecida_03": 3, "foto_enriquecida_04": 4,
-    "foto_enriquecida_05": 5, "foto_enriquecida_06": 6,
-    "foto_master_producto_main_image_1000x1000_png_01": 1,
-    "foto_master_producto_main_image_1000x1000_png_02": 2,
-    "foto_image_gallery_11_jpg_01": 1, "foto_image_gallery_11_jpg_02": 2,
-    "foto_image_gallery_11_jpg_03": 3, "foto_image_gallery_11_jpg_04": 4,
-    "foto_image_gallery_11_jpg_05": 5, "foto_image_gallery_11_jpg_06": 6,
-    # Ecatalog
-    "Enhanced Photo 01": 1, "Enhanced Photo 02": 2,
-    "Enhanced Photo 03": 3, "Enhanced Photo 04": 4,
-    "Enhanced Photo 05": 5, "Enhanced Photo 06": 6,
-    "Enhanced Photo 07": 7, "Enhanced Photo 08": 8,
-    "1000x1000 JPG (Marketplace) 01": 1, "1000x1000 JPG (Marketplace) 02": 2,
-    "1000x1000 JPG (Marketplace) 03": 3, "1000x1000 JPG (Marketplace) 04": 4,
-    "1000x1000 JPG (Marketplace) 05": 5,
-    "Foto Image Gallery 1:1 JPG 01": 1, "Foto Image Gallery 1:1 JPG 02": 2,
-    "Foto Image Gallery 1:1 JPG 03": 3, "Foto Image Gallery 1:1 JPG 04": 4,
-    "Foto Image Gallery 1:1 JPG 05": 5, "Foto Image Gallery 1:1 JPG 06": 6,
-}
-
-
-def _url_turaco(sku_raw: str, campo: str, res: str = CDN_RESOLUCION) -> str:
-    """Construye la URL pública del CDN de Turaco para un campo de imagen."""
-    sku = sku_raw.strip()
-    idx = _CAMPO_A_INDICE.get(campo)
-    if not sku or idx is None:
-        return ""
-    return f"{CDN_TURACO}/{sku}/{sku}_{idx}_{res}.jpg"
-
-
-def _primera_url(valor):
-    if not valor:
-        return ""
-    raw = str(valor).split(" | ")[0].strip()
-    return _encodear_url(raw)
-
-
-def _encodear_url(url):
-    """Codifica espacios y caracteres no-ASCII en la URL sin tocar el esquema ni el host."""
-    if not url:
-        return ""
-    # Separar esquema+host del path
-    try:
-        from urllib.parse import urlsplit, urlunsplit, quote
-        parts = urlsplit(url)
-        # Encodear solo el path (espacios → %20, etc.), preservar slashes
-        path_enc = quote(parts.path, safe="/:@!$&'()*+,;=")
-        return urlunsplit((parts.scheme, parts.netloc, path_enc, parts.query, parts.fragment))
-    except Exception:
-        return url
-
-
-def _es_url(valor):
-    s = str(valor or "").strip()
-    return s.startswith("http://") or s.startswith("https://")
-
-
-CSS_HTML = """
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,sans-serif;color:#333;background:#fff;max-width:960px;margin:auto;padding:32px 16px}
-img{max-width:100%;display:block;object-fit:contain}
-.cd-hero{display:flex;gap:40px;align-items:center;margin-bottom:48px;flex-wrap:wrap}
-.cd-hero img{width:420px;background:#f8f8f8;border:1px solid #eee;padding:8px;border-radius:6px}
-.cd-nophoto{width:420px;height:300px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:.85rem;border-radius:6px}
-.cd-hero-text{flex:1;min-width:220px}
-.cd-sku{font-size:.72rem;color:#aaa;letter-spacing:.05em;margin-bottom:10px}
-.cd-hero-text h2{font-size:1.4rem;font-weight:700;line-height:1.3;color:#111;margin-bottom:12px}
-.cd-hero-text p{font-size:.95rem;line-height:1.7;color:#555}
-.cd-row{display:flex;gap:36px;align-items:center;margin-bottom:40px;flex-wrap:wrap}
-.cd-row-rev{flex-direction:row-reverse}
-.cd-row img{width:45%;min-width:200px;flex-shrink:0;background:#f8f8f8;border:1px solid #eee;padding:8px;border-radius:6px}
-.cd-text{flex:1;min-width:200px}
-.cd-text p{font-size:.95rem;line-height:1.75;color:#444}
-.cd-full{margin-bottom:36px}
-.cd-full img{width:100%;background:#f8f8f8;border:1px solid #eee;padding:8px;border-radius:6px;margin-bottom:10px}
-.cd-caption{font-size:.9rem;color:#555;line-height:1.6}
-.cd-divider{border:none;border-top:1px solid #eee;margin:8px 0 36px}
-"""
-
-
-def _generar_html_fila(fila: dict, layout: list) -> str:
-    """
-    Genera HTML para Cdiscount según un layout configurable.
-    layout: lista de dicts con {tipo, campos:{...}}
-    tipos: hero | text-photo | photo-text | photo-full
-    """
-    sku = escape(str(fila.get("SKU", "")))
-
-    def val(campo):
-        if not campo:
-            return ""
-        v = str(fila.get(campo, "") or "").strip()
-        return v
-
-    def val_resuelto(campo, fijo=""):
-        """Devuelve fijo si existe, si no el valor del campo del df."""
-        if fijo and fijo.strip():
-            return fijo.strip()
-        return val(campo)
-
-    def url_resuelta(campo, url_fija=""):
-        """
-        Prioridad:
-        1. URL fija introducida manualmente
-        2. URL del CDN de Turaco (pública, válida para Cdiscount)
-        3. URL de Plytix como fallback (solo para preview interno)
-        """
-        if url_fija and url_fija.strip().startswith("http"):
-            return url_fija.strip()
-        # Intentar CDN Turaco con el SKU del producto
-        sku_raw = str(fila.get("SKU", "")).strip()
-        url_cdn = _url_turaco(sku_raw, campo)
-        if url_cdn:
-            return url_cdn
-        # Fallback: URL de Plytix (solo útil para preview, Cdiscount la rechazará)
-        return _primera_url(val(campo))
-
-    def img_tag(campo, url_fija="", alt="", css=""):
-        u = url_resuelta(campo, url_fija)
-        # Cdiscount exige URL absoluta — omitir si no la hay
-        if not u or not (u.startswith("https://") or u.startswith("http://")):
-            return ""
-        return f'<img src="{u}" alt="{escape(alt)}" loading="lazy" {'class="'+css+'"' if css else ""}/>'
-
-    bloques = []
-    for bloque in layout:
-        tipo   = bloque.get("tipo", "")
-        campos = bloque.get("campos", {})
-
-        if tipo == "hero":
-            img   = img_tag(campos.get("img",""), campos.get("img",""), sku)
-            nom   = escape(val_resuelto(campos.get("nombre",""), campos.get("nombre_fijo",""))) or sku
-            desc  = escape(val_resuelto(campos.get("desc",""), campos.get("desc_fijo","")))
-            bloques.append(f'''<section class="cd-hero">
-  {img}
-  <div class="cd-hero-text">
-    <h2>{nom}</h2>
-    <p>{desc}</p>
-  </div>
-</section>''')
-
-        elif tipo == "text-photo":
-            txt  = escape(val_resuelto(campos.get("texto",""), campos.get("texto_fijo","")))
-            img  = img_tag(campos.get("img",""), campos.get("img_fija",""), sku)
-            bloques.append(f'''<div class="cd-row">
-  <div class="cd-text"><p>{txt}</p></div>
-  {img}
-</div>''')
-
-        elif tipo == "photo-text":
-            img  = img_tag(campos.get("img",""), campos.get("img_fija",""), sku)
-            txt  = escape(val_resuelto(campos.get("texto",""), campos.get("texto_fijo","")))
-            bloques.append(f'''<div class="cd-row cd-row-rev">
-  {img}
-  <div class="cd-text"><p>{txt}</p></div>
-</div>''')
-
-        elif tipo == "photo-full":
-            img   = img_tag(campos.get("img",""), campos.get("img_fija",""), sku)
-            extra = escape(val_resuelto(campos.get("extra",""), campos.get("extra_fijo","")))
-            cap   = f'<p class="cd-caption">{extra}</p>' if extra else ""
-            bloques.append(f'''<div class="cd-full">
-  {img}
-  {cap}
-</div>''')
-
-    cuerpo = '\n<hr class="cd-divider"/>\n'.join(bloques)
-
-    # Cdiscount espera solo el contenido — sin DOCTYPE, html, head ni style externos
-    # El CSS va inline en un <style> dentro del fragmento
-    return f"""<style>{CSS_HTML}</style>
-{cuerpo}"""
-
-
-def generar_zip_html(df: pd.DataFrame, layout: list) -> bytes:
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for _, fila in df.iterrows():
-            sku  = str(fila.get("SKU","sin_sku")).strip().replace("/","_").replace(" ","_")
-            html = _generar_html_fila(fila.to_dict(), layout)
-            zf.writestr(f"{sku}.html", html.encode("utf-8"))
-    buf.seek(0)
-    return buf.getvalue()
-
-
 # ── Page config ──────────────────────────────────────────────
 st.set_page_config(page_title="Plytix Downloader · Cecotec", page_icon="⬇️", layout="wide")
 
@@ -435,96 +221,62 @@ if "campos" not in st.session_state:
 if "modo" not in st.session_state:
     st.session_state.modo = "ecatalog"
 
-# Colores corporativos Cecotec
-CC_TURQUESA = "#3EB1C8"
-CC_NEGRO    = "#141413"
-CC_FONDO    = "#FAF9F5"
-
 # ── CSS ──────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
-html, body, [class*="css"] { font-family: 'Inter', sans-serif; background: #141413; color: #FAF9F5; }
-.stApp { background: #141413; }
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; background: #0a0a0a; color: #ffffff; }
+.stApp { background: #0a0a0a; }
 #MainMenu, footer, header { visibility: hidden; }
 .block-container { padding: 2rem 2.5rem 3rem !important; max-width: 1400px !important; }
-
-/* Header y banner */
-.turaco-header h1 { font-size: 2.2rem; font-weight: 800; color: #FAF9F5; margin: 0 0 0.8rem 0; }
-.turaco-banner { background: #1e1e1c; border: 1px solid #2e2e2c; border-radius: 8px; padding: 0.85rem 1.2rem; font-size: 0.9rem; color: #b0b0a8; margin-bottom: 1.2rem; }
-.turaco-banner b { color: #FAF9F5; }
-
-/* Cards resumen */
-.card-white { background: #FAF9F5; border-radius: 14px; padding: 1.8rem 1.5rem 1.4rem; text-align: center; border: 1px solid #ddddd5; min-height: 160px; }
+.turaco-header h1 { font-size: 2.2rem; font-weight: 800; color: #ffffff; margin: 0 0 0.8rem 0; }
+.turaco-banner { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 0.85rem 1.2rem; font-size: 0.9rem; color: #cccccc; margin-bottom: 1.2rem; }
+.turaco-banner b { color: #ffffff; }
+.card-white { background: #f5f5f5; border-radius: 14px; padding: 1.8rem 1.5rem 1.4rem; text-align: center; border: 1px solid #e0e0e0; min-height: 160px; }
 .card-white .card-icon { font-size: 2.2rem; margin-bottom: 0.7rem; }
-.card-white .card-title { font-size: 1rem; font-weight: 700; color: #141413; margin-bottom: 0.4rem; }
-.card-white .card-desc { font-size: 0.8rem; color: #555; line-height: 1.4; }
-
-/* Secciones */
-.section-dark { background: #1e1e1c; border: 1px solid #2e2e2c; border-radius: 14px; padding: 1.5rem 1.8rem; margin-bottom: 1.2rem; }
-.section-dark h3 { color: #FAF9F5 !important; font-size: 1rem; font-weight: 700; margin: 0 0 1rem 0; }
-
-/* Stats */
+.card-white .card-title { font-size: 1rem; font-weight: 700; color: #111; margin-bottom: 0.4rem; }
+.card-white .card-desc { font-size: 0.8rem; color: #666; line-height: 1.4; }
+.section-dark { background: #111111; border: 1px solid #222; border-radius: 14px; padding: 1.5rem 1.8rem; margin-bottom: 1.2rem; }
+.section-dark h3 { color: #ffffff !important; font-size: 1rem; font-weight: 700; margin: 0 0 1rem 0; }
 .stat-row { display: flex; gap: 1rem; margin: 1rem 0; }
-.stat-box { background: #1e1e1c; border: 1px solid #2e2e2c; border-radius: 10px; padding: 1rem 1.2rem; flex: 1; text-align: center; }
-.stat-box .num { font-size: 2rem; font-weight: 800; color: #3EB1C8; display: block; line-height: 1; }
+.stat-box { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 1rem 1.2rem; flex: 1; text-align: center; }
+.stat-box .num { font-size: 2rem; font-weight: 800; color: #22d3c5; display: block; line-height: 1; }
 .stat-box .lbl { font-size: 0.72rem; color: #888; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 0.3rem; display: block; }
-
-/* Badges */
-.badge-ecatalog { background: #3EB1C8; color: #141413; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+.badge-ecatalog { background: #22d3c5; color: #000; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
 .badge-pim { background: #6366f1; color: #fff; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
-
-/* Botones */
-.stButton > button { background: #3EB1C8 !important; color: #141413 !important; border: none !important; border-radius: 8px !important; font-weight: 700 !important; font-size: 0.85rem !important; padding: 0.55rem 1.4rem !important; transition: all 0.2s !important; width: 100% !important; }
-.stButton > button:hover { background: #2d9db3 !important; transform: translateY(-1px) !important; box-shadow: 0 4px 15px rgba(62,177,200,0.35) !important; }
-.stButton > button:disabled { background: #2e2e2c !important; color: #666 !important; }
-
-/* Inputs */
-.stTextInput > div > div > input, .stTextArea > div > div > textarea { background: #1e1e1c !important; border: 1.5px solid #3a3a38 !important; color: #FAF9F5 !important; border-radius: 8px !important; font-size: 0.9rem !important; }
-.stTextInput > div > div > input:focus, .stTextArea > div > div > textarea:focus { border-color: #3EB1C8 !important; box-shadow: 0 0 0 2px rgba(62,177,200,0.25) !important; }
-
-/* Labels globales */
-label { color: #c0c0b8 !important; font-size: 0.82rem !important; font-weight: 600 !important; }
-/* Texto de opciones en radio buttons — Streamlit 1.5x renderiza como <p> dentro del label */
-div[role="radiogroup"] label p,
-div[role="radiogroup"] label span,
-div[role="radiogroup"] p { color: #FAF9F5 !important; }
-
-/* File uploader */
-[data-testid="stFileUploader"] { background: #1e1e1c !important; border: 2px dashed #3a3a38 !important; border-radius: 12px !important; }
-
-/* Select */
-[data-baseweb="select"] > div { background: #1e1e1c !important; border-color: #3a3a38 !important; color: #FAF9F5 !important; }
-[data-baseweb="select"] input { background: transparent !important; color: #FAF9F5 !important; caret-color: #3EB1C8 !important; }
-[data-baseweb="tag"] { background: #3EB1C8 !important; color: #141413 !important; font-weight: 600 !important; max-width: none !important; white-space: nowrap !important; overflow: visible !important; }
-[data-baseweb="tag"] span[data-baseweb="tag-text"] { overflow: visible !important; text-overflow: unset !important; white-space: nowrap !important; max-width: none !important; font-size: 0.78rem !important; }
-[data-baseweb="menu"] { background: #1e1e1c !important; border: 1px solid #3a3a38 !important; }
-[data-baseweb="menu"] li { color: #FAF9F5 !important; }
-[data-baseweb="menu"] li:hover { background: #2e2e2c !important; color: #3EB1C8 !important; }
-
-/* Tabs */
-.stTabs [data-baseweb="tab-list"] { background: #1e1e1c; border-radius: 10px; padding: 4px; gap: 4px; border: 1px solid #2e2e2c; }
+.stButton > button { background: #22d3c5 !important; color: #000000 !important; border: none !important; border-radius: 8px !important; font-weight: 700 !important; font-size: 0.85rem !important; padding: 0.55rem 1.4rem !important; transition: all 0.2s !important; width: 100% !important; }
+.stButton > button:hover { background: #1ab5a8 !important; transform: translateY(-1px) !important; box-shadow: 0 4px 15px rgba(34,211,197,0.3) !important; }
+.stButton > button:disabled { background: #333 !important; color: #666 !important; }
+.stTextInput > div > div > input, .stTextArea > div > div > textarea { background: #1a1a1a !important; border: 1.5px solid #333 !important; color: #ffffff !important; border-radius: 8px !important; font-size: 0.9rem !important; }
+.stTextInput > div > div > input:focus, .stTextArea > div > div > textarea:focus { border-color: #22d3c5 !important; box-shadow: 0 0 0 2px rgba(34,211,197,0.2) !important; }
+label { color: #aaaaaa !important; font-size: 0.82rem !important; font-weight: 600 !important; }
+[data-testid="stFileUploader"] { background: #111 !important; border: 2px dashed #333 !important; border-radius: 12px !important; }
+[data-baseweb="select"] > div { background: #1a1a1a !important; border-color: #333 !important; color: #fff !important; }
+[data-baseweb="select"] input { background: transparent !important; color: #ffffff !important; caret-color: #22d3c5 !important; }
+[data-baseweb="tag"] {
+    background: #22d3c5 !important;
+    color: #000 !important;
+    font-weight: 600 !important;
+    max-width: none !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+}
+[data-baseweb="tag"] span[data-baseweb="tag-text"] {
+    overflow: visible !important;
+    text-overflow: unset !important;
+    white-space: nowrap !important;
+    max-width: none !important;
+    font-size: 0.78rem !important;
+}
+[data-baseweb="menu"] { background: #1a1a1a !important; border: 1px solid #333 !important; }
+[data-baseweb="menu"] li { color: #ffffff !important; }
+[data-baseweb="menu"] li:hover { background: #2a2a2a !important; color: #22d3c5 !important; }
+.stTabs [data-baseweb="tab-list"] { background: #111; border-radius: 10px; padding: 4px; gap: 4px; border: 1px solid #222; }
 .stTabs [data-baseweb="tab"] { background: transparent !important; color: #888 !important; border-radius: 7px !important; font-weight: 600 !important; font-size: 0.85rem !important; }
-.stTabs [aria-selected="true"] { background: #3EB1C8 !important; color: #141413 !important; }
-
-/* Progress, radio, hr */
-.stProgress > div > div > div { background: #3EB1C8 !important; }
+.stTabs [aria-selected="true"] { background: #22d3c5 !important; color: #000 !important; }
+.stProgress > div > div > div { background: #22d3c5 !important; }
 .stRadio > div { gap: 1rem !important; }
-.stRadio label { color: #FAF9F5 !important; font-size: 0.82rem !important; }
-.stRadio label p, .stRadio label span { color: #FAF9F5 !important; }
-[data-testid="stWidgetLabel"] p, [data-testid="stWidgetLabel"] span { color: #FAF9F5 !important; }
-[data-baseweb="radio"] ~ div p { color: #FAF9F5 !important; }
-hr { border-color: #2e2e2c !important; margin: 1.5rem 0 !important; }
-
-/* ── Editor de bloques HTML ──────────────────────────────── */
-/* Clase .bloque-editor aplicada con st.markdown envolvente */
-.bloque-editor { background: #FAF9F5; border-radius: 12px; padding: 16px 20px; margin-bottom: 12px; border: 1.5px solid #d0d0c8; }
-.bloque-editor-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; border-bottom: 1px solid #d0d0c8; padding-bottom: 10px; }
-.bloque-editor-titulo { font-size: 0.9rem; font-weight: 700; color: #141413; }
-.bloque-editor-badge { background: #3EB1C8; color: #141413; font-size: 0.72rem; font-weight: 700; padding: 2px 10px; border-radius: 20px; }
-.campo-preview-img { display: inline-block; margin-top: 6px; }
-.campo-preview-txt { font-size: 0.8rem; color: #444; margin-top: 5px; background: #eeeee6; border-radius: 6px; padding: 5px 8px; font-style: italic; border-left: 3px solid #3EB1C8; }
-.campo-preview-vacio { font-size: 0.78rem; color: #999; margin-top: 5px; font-style: italic; }
+hr { border-color: #222 !important; margin: 1.5rem 0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -633,80 +385,7 @@ def ejecutar_descarga_ecatalog(skus, api_key, api_secret, campos, progress_bar, 
     return pd.DataFrame(resultados), None
 
 
-# ── MODO HÍBRIDO: ecatalog (imágenes) + PIM (textos) ─────────
-
-def ejecutar_descarga_hibrida(skus, api_key, api_secret, campos_ecatalog, campos_pim, progress_bar, status_text):
-    """
-    Combina en un solo DataFrame:
-    - Campos del ecatalog (imágenes JPG convertidas)
-    - Campos del PIM directo (textos, bulletpoints, etc.)
-    """
-    status_text.markdown("🔑 Autenticando...")
-    token, err = obtener_token(api_key, api_secret)
-    if not token:
-        return None, f"Error de autenticación: {err}"
-
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-    }
-
-    # Paso 1: IDs de PIM para todos los SKUs (necesarios para ambas llamadas)
-    status_text.markdown("🔍 Buscando IDs en PIM...")
-    productos_base = buscar_ids_pim(skus, headers)
-    if not productos_base:
-        return None, "No se encontraron productos para los SKUs proporcionados."
-
-    id_por_sku = {p.get("sku", ""): p["id"] for p in productos_base}
-    total = len(productos_base)
-    resultados = []
-
-    for idx, p in enumerate(productos_base):
-        sku        = p.get("sku", "")
-        product_id = p["id"]
-        progreso   = (idx / total)
-
-        progress_bar.progress(progreso * 0.9)
-        status_text.markdown(f"📥 {idx+1}/{total}: `{sku}`")
-
-        fila = {"SKU": sku}
-
-        # ── Ecatalog: imágenes ──
-        if campos_ecatalog:
-            try:
-                r = requests.get(
-                    f"https://pim.plytix.com/api/v1/public/e-catalogs/{ECATALOG_ID}/products/{product_id}",
-                    headers=headers, verify=False, timeout=30
-                )
-                if r.status_code == 200:
-                    result = r.json().get("data", [])
-                    attrs_ec = (result[0].get("attributes", {}) if isinstance(result, list) and result
-                                else result.get("attributes", {}) if isinstance(result, dict) else {})
-                    for campo in campos_ecatalog:
-                        fila[campo] = extraer_valor(attrs_ec.get(campo))
-                else:
-                    for campo in campos_ecatalog:
-                        fila[campo] = ""
-            except Exception:
-                for campo in campos_ecatalog:
-                    fila[campo] = ""
-
-        # ── PIM: textos ──
-        if campos_pim:
-            attrs_pim = obtener_atributos_pim(product_id, headers)
-            for campo in campos_pim:
-                fila[campo] = extraer_valor(attrs_pim.get(campo))
-
-        resultados.append(fila)
-        time.sleep(0.2)
-
-    progress_bar.progress(1.0)
-    status_text.markdown("✅ Descarga híbrida completada")
-    return pd.DataFrame(resultados), None
-
-
-# ── MODO PIM ──────────────────────────────────────────────────────
+# ── MODO PIM ──────────────────────────────────────────────────
 
 def buscar_ids_pim(skus, headers, progress_cb=None):
     todos = []
@@ -798,13 +477,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Cards resumen
-c1, c2, c3, c4, c5 = st.columns(5)
+c1, c2, c3, c4 = st.columns(4)
 for col, icon, title, desc in [
-    (c1, "🔐", "Credenciales",   "API Key y Secret de Plytix"),
-    (c2, "🗄️", "Campos",         "Selecciona qué campos descargar"),
-    (c3, "📂", "SKUs",            "Sube Excel o pega manualmente"),
-    (c4, "⬇️", "Descarga",        "Elige fuente e inicia la descarga"),
-    (c5, "🌐", "Genera HTML",     "Construye el layout para Cdiscount"),
+    (c1, "🔐", "Credenciales API", "Introduce tu API Key y Secret de Plytix"),
+    (c2, "🗄️", "Fuente de datos", "Elige entre PIM directo o Ecatalog/Channel con JPGs"),
+    (c3, "📂", "Carga tus SKUs", "Sube un Excel o pega los SKUs manualmente"),
+    (c4, "⬇️", "Descarga Excel", "Obtén el reporte con todos los atributos seleccionados"),
 ]:
     with col:
         st.markdown(f"""
@@ -829,13 +507,19 @@ with col_izq:
         st.warning("⚠️ Plytix → Admin → API → Tu usuario")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ── PASO 2: CAMPOS ────────────────────────────────────────────
+# ── PASO 2: FUENTE + CAMPOS ───────────────────────────────────
 with col_der:
-    st.markdown('<div class="section-dark"><h3>🗄️ Paso 2 — Campos a descargar</h3>', unsafe_allow_html=True)
+    st.markdown('<div class="section-dark"><h3>🗄️ Paso 2 — Fuente de datos y campos</h3>', unsafe_allow_html=True)
 
-    # Modo determina qué lista de campos mostrar — se usará también en el paso 4
-    modo = st.session_state.get("modo", "ecatalog")
-    todos_campos   = TODOS_CAMPOS_ECATALOG if modo == "ecatalog" else TODOS_CAMPOS_PIM
+    modo = st.radio(
+        "Fuente de datos:",
+        options=["ecatalog", "pim"],
+        format_func=lambda x: "📦 Ecatalog/Channel — JPGs convertidos (recomendado)" if x == "ecatalog" else "🗃️ PIM directo — todos los atributos",
+        horizontal=True,
+        key="modo"
+    )
+
+    todos_campos = TODOS_CAMPOS_ECATALOG if modo == "ecatalog" else TODOS_CAMPOS_PIM
     defecto_campos = CAMPOS_ECATALOG_DEFECTO if modo == "ecatalog" else CAMPOS_PIM_DEFECTO
 
     if "ultimo_modo" not in st.session_state or st.session_state.ultimo_modo != modo:
@@ -856,13 +540,11 @@ with col_der:
             st.session_state.campos = defecto_campos[:]
             st.rerun()
 
-    # Filtrar el default para que solo contenga campos que existen en options
-    default_valido = [c for c in st.session_state.campos if c in todos_campos]
     campos_seleccionados = st.multiselect(
         label=f"Campos a descargar ({len(todos_campos)} disponibles):",
         options=todos_campos,
-        default=default_valido,
-        help="Escribe para filtrar. Los bulletpoint_X_fr ya están incluidos por defecto.",
+        default=st.session_state.campos,
+        help="Escribe para filtrar. Selecciona varios antes de cerrar el desplegable.",
         key="campos"
     )
 
@@ -933,34 +615,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ── PASO 4: DESCARGA ─────────────────────────────────────────
-st.markdown('<div class="section-dark"><h3>⬇️ Paso 4 — Fuente e iniciar descarga</h3>', unsafe_allow_html=True)
-
-modo = st.radio(
-    "Fuente de datos:",
-    options=["ecatalog", "hibrido", "pim"],
-    format_func=lambda x: {
-        "ecatalog": "📦 Ecatalog — solo imágenes JPG",
-        "hibrido":  "🔀 Híbrido — imágenes Ecatalog + textos PIM (recomendado para HTML)",
-        "pim":      "🗃️ PIM directo — todos los atributos",
-    }[x],
-    horizontal=False,
-    key="modo"
-)
-
-# Actualizar campos disponibles según la fuente elegida
-todos_campos   = TODOS_CAMPOS_PIM if modo == "pim" else TODOS_CAMPOS_ECATALOG
-defecto_campos = CAMPOS_PIM_DEFECTO if modo == "pim" else CAMPOS_ECATALOG_DEFECTO
-if "ultimo_modo" not in st.session_state or st.session_state.ultimo_modo != modo:
-    st.session_state.campos = defecto_campos[:]
-    st.session_state.ultimo_modo = modo
-    st.rerun()
-
-if modo == "hibrido":
-    st.info(
-        "Se descargarán los campos de imagen del **Ecatalog** seleccionados arriba "
-        f"+ **todos los atributos del PIM** ({len(TODOS_CAMPOS_PIM)} campos). "
-        "El resultado se combina en un único df listo para el generador de HTML."
-    )
+st.markdown('<div class="section-dark"><h3>⬇️ Paso 4 — Iniciar descarga</h3>', unsafe_allow_html=True)
 
 col_info, col_btn = st.columns([3, 1], gap="large")
 
@@ -979,7 +634,7 @@ with col_info:
         st.info("ℹ️ Completa los pasos anteriores para habilitar la descarga")
 
 with col_btn:
-    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
     can_run = bool(st.session_state.skus_finales) and bool(api_key) and bool(api_secret) and bool(campos_seleccionados)
     iniciar = st.button("⬇️ INICIAR DESCARGA", disabled=not can_run)
 
@@ -995,12 +650,6 @@ if iniciar and st.session_state.skus_finales:
             st.session_state.skus_finales, api_key, api_secret,
             campos_seleccionados, progress_bar, status_text
         )
-    elif modo == "hibrido":
-        campos_ec = [c for c in campos_seleccionados if c in TODOS_CAMPOS_ECATALOG]
-        df_resultado, error = ejecutar_descarga_hibrida(
-            st.session_state.skus_finales, api_key, api_secret,
-            campos_ec, TODOS_CAMPOS_PIM, progress_bar, status_text
-        )
     else:
         df_resultado, error = ejecutar_descarga_pim(
             st.session_state.skus_finales, api_key, api_secret,
@@ -1010,376 +659,27 @@ if iniciar and st.session_state.skus_finales:
     if error:
         st.error(f"❌ {error}")
     else:
-        # Guardar en session_state para que persista tras cualquier rerender
+        st.success(f"✅ {len(df_resultado)} productos descargados")
+
+        campos_con_datos = sum(1 for c in df_resultado.columns if df_resultado[c].astype(str).str.strip().ne("").any())
+        st.markdown(f"""
+        <div class="stat-row">
+            <div class="stat-box"><span class="num">{len(df_resultado)}</span><span class="lbl">Productos</span></div>
+            <div class="stat-box"><span class="num">{len(df_resultado.columns)}</span><span class="lbl">Columnas</span></div>
+            <div class="stat-box"><span class="num">{campos_con_datos}</span><span class="lbl">Con datos</span></div>
+        </div>""", unsafe_allow_html=True)
+
+        with st.expander("👁 Vista previa", expanded=True):
+            st.dataframe(df_resultado.head(20), use_container_width=True)
+
         buffer_xlsx = io.BytesIO()
         with pd.ExcelWriter(buffer_xlsx, engine="xlsxwriter") as writer:
             df_resultado.to_excel(writer, index=False, sheet_name="Plytix")
         buffer_xlsx.seek(0)
-        st.session_state["df_resultado"]   = df_resultado
-        st.session_state["xlsx_bytes"]     = buffer_xlsx.getvalue()
-        st.session_state["resultado_modo"] = modo
-        st.session_state.pop("zip_html_bytes", None)   # limpiar ZIP anterior si había
 
-# ── RESULTADOS ────────────────────────────────────────────────
-if st.session_state.get("df_resultado") is not None:
-    df_resultado = st.session_state["df_resultado"]
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<div class="section-dark"><h3>📊 Resultados descarga</h3>', unsafe_allow_html=True)
-    st.success(f"✅ {len(df_resultado)} productos descargados")
-
-    campos_con_datos = sum(1 for c in df_resultado.columns if df_resultado[c].astype(str).str.strip().ne("").any())
-    st.markdown(f"""
-    <div class="stat-row">
-        <div class="stat-box"><span class="num">{len(df_resultado)}</span><span class="lbl">Productos</span></div>
-        <div class="stat-box"><span class="num">{len(df_resultado.columns)}</span><span class="lbl">Columnas</span></div>
-        <div class="stat-box"><span class="num">{campos_con_datos}</span><span class="lbl">Con datos</span></div>
-    </div>""", unsafe_allow_html=True)
-
-    with st.expander("👁 Vista previa datos", expanded=False):
-        st.dataframe(df_resultado.head(20), use_container_width=True)
-
-    st.download_button(
-        label="⬇️ DESCARGAR XLSX",
-        data=st.session_state["xlsx_bytes"],
-        file_name="reporte_plytix.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        key="dl_xlsx"
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# ── PASO 5: GENERAR HTML ───────────────────────────────────────
-st.markdown("<br>", unsafe_allow_html=True)
-st.markdown('<div class="section-dark"><h3>🌐 Paso 5 — Generar HTML para Cdiscount</h3>', unsafe_allow_html=True)
-
-if st.session_state.get("df_resultado") is None:
-    st.info("ℹ️ Completa los pasos 1–4 y descarga los datos para habilitar el generador de HTML.")
-    st.markdown('</div>', unsafe_allow_html=True)
-else:
-    df_resultado = st.session_state["df_resultado"]
-
-    # ── Editor visual de layout HTML Cdiscount ───────────────
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("---")
-    st.markdown("#### 🌐 Generador HTML Cdiscount")
-
-    cols_disponibles = [c for c in df_resultado.columns if c != "SKU"]
-    # Campos de imagen del banco (ecatalog tiene JPGs directos)
-    cols_imagen = [c for c in cols_disponibles if any(k in c.lower() for k in
-        ["jpg","png","photo","foto","image","img","banner","enhanced","gallery","1000x","2000x","hq"])]
-    cols_texto  = [c for c in cols_disponibles if c not in cols_imagen]
-
-    # Selector de producto de muestra para preview
-    skus_disponibles = df_resultado["SKU"].astype(str).tolist()
-    sku_muestra_sel = st.selectbox(
-        "Producto de muestra para preview:",
-        options=skus_disponibles,
-        key="sku_muestra_preview",
-        help="Elige qué producto usar como muestra en los previews del editor."
-    )
-    idx_muestra = skus_disponibles.index(sku_muestra_sel) if sku_muestra_sel in skus_disponibles else 0
-    muestra = df_resultado.iloc[idx_muestra].to_dict()
-
-    # Aviso si no hay bulletpoints descargados
-    tiene_bullets = any("bulletpoint" in c.lower() for c in cols_disponibles)
-    if not tiene_bullets:
-        st.warning(
-            "⚠️ Los campos **bulletpoint** no están en los datos descargados. "
-            "Usa el modo **Híbrido** en el Paso 4 para incluirlos automáticamente.",
-            icon="💡"
-        )
-
-    # Inicializar bloques en session_state
-    if "html_bloques" not in st.session_state:
-        st.session_state["html_bloques"] = []
-
-    TIPOS_BLOQUE = {
-        "hero":       "Hero (foto + nombre + descripción)",
-        "text-photo": "Texto izq · Foto dcha",
-        "photo-text": "Foto izq · Texto dcha",
-        "photo-full": "Foto ancho completo + campo texto",
-    }
-
-    # Barra de añadir bloques
-    col_btns = st.columns(4)
-    for i, (tipo, label) in enumerate(TIPOS_BLOQUE.items()):
-        with col_btns[i]:
-            if st.button(f"＋ {label}", key=f"add_{tipo}", use_container_width=True):
-                st.session_state["html_bloques"].append({"tipo": tipo, "campos": {}})
-                st.session_state.pop("zip_html_bytes", None)
-                st.rerun()
-
-    if not st.session_state["html_bloques"]:
-        st.info("Añade bloques desde los botones de arriba para construir la estructura del HTML.")
-    else:
-        bloques = st.session_state["html_bloques"]
-        to_delete = None
-        to_move   = None
-
-        for idx, bloque in enumerate(bloques):
-            tipo   = bloque["tipo"]
-            campos = bloque.setdefault("campos", {})
-
-            with st.container(border=True):
-                # Cabecera del bloque
-                hcol1, hcol2, hcol3, hcol4 = st.columns([3, 1, 1, 1])
-                with hcol1:
-                    badge_color = {"hero":"#3EB1C8","text-photo":"#5bbf3e","photo-text":"#e8a020","photo-full":"#a05ce8"}.get(tipo,"#3EB1C8")
-                    st.markdown(
-                        f'<p style="font-size:.9rem;font-weight:700;color:#FAF9F5;margin:0">' +
-                        f'<span style="background:{badge_color};color:#141413;padding:2px 10px;border-radius:20px;font-size:.75rem;font-weight:700;margin-right:8px">{tipo}</span>' +
-                        f'Bloque {idx+1} — {TIPOS_BLOQUE[tipo]}</p>',
-                        unsafe_allow_html=True)
-                with hcol2:
-                    if idx > 0 and st.button("↑", key=f"up_{idx}", use_container_width=True):
-                        to_move = (idx, idx-1)
-                with hcol3:
-                    if idx < len(bloques)-1 and st.button("↓", key=f"dn_{idx}", use_container_width=True):
-                        to_move = (idx, idx+1)
-                with hcol4:
-                    if st.button("🗑", key=f"del_{idx}", use_container_width=True):
-                        to_delete = idx
-
-                # Campos según tipo — cada campo tiene 3 modos
-                def _prev_html(texto, es_imagen=False, url=""):
-                    """Renderiza preview con colores explícitos — no hereda tema oscuro."""
-                    if es_imagen and url and _es_url(url):
-                        return  # se usa st.image aparte
-                    if texto:
-                        t = str(texto)[:140].replace("<","&lt;").replace(">","&gt;")
-                        st.markdown(f'<div class="campo-preview-txt">↳ {t}</div>', unsafe_allow_html=True)
-                    else:
-                        st.markdown('<div class="campo-preview-vacio">↳ sin datos en la muestra</div>', unsafe_allow_html=True)
-
-                def campo_selector(clave, label, es_imagen, idx=idx, campos=campos):
-                    clave_fija = "img_fija" if clave == "img" else f"{clave}_fijo"
-                    modo_key   = f"modo_{idx}_{clave}"
-                    if modo_key not in st.session_state:
-                        st.session_state[modo_key] = "campo"
-
-                    modo_opts   = ["campo", "fijo", "banco"] if es_imagen else ["campo", "fijo"]
-                    modo_labels = {"campo": "Campo PIM/Ecatalog", "fijo": "Texto/URL fijo", "banco": "Banco imágenes"}
-
-                    st.markdown(f'<p style="font-size:0.82rem;font-weight:700;color:#FAF9F5;margin-bottom:4px">{label}</p>', unsafe_allow_html=True)
-                    modo = st.radio("",
-                        options=modo_opts,
-                        format_func=lambda x: modo_labels[x],
-                        index=modo_opts.index(st.session_state[modo_key]),
-                        key=f"radio_{idx}_{clave}",
-                        horizontal=True,
-                        label_visibility="collapsed")
-                    st.session_state[modo_key] = modo
-
-                    if modo == "campo":
-                        opc = ["(ninguno)"] + cols_disponibles
-                        val_actual = campos.get(clave, "(ninguno)")
-                        if val_actual not in opc:
-                            val_actual = "(ninguno)"
-                        sel = st.selectbox("", opc,
-                            index=opc.index(val_actual),
-                            key=f"sel_{idx}_{clave}",
-                            label_visibility="collapsed")
-                        campos[clave]      = sel
-                        campos[clave_fija] = ""
-
-                        if es_imagen and sel != "(ninguno)":
-                            # Mostrar la URL de Turaco que se usará realmente
-                            sku_muestra = str(muestra.get("SKU", "")).strip()
-                            url_cdn = _url_turaco(sku_muestra, sel) if sku_muestra else ""
-                            if url_cdn:
-                                st.image(url_cdn, width=160)
-                                st.markdown(
-                                    f'<div class="campo-preview-txt" style="font-size:0.7rem;word-break:break-all">✅ CDN: {url_cdn}</div>',
-                                    unsafe_allow_html=True)
-                            else:
-                                # Campo no mapeado al CDN — mostrar URL de Plytix como preview
-                                val_real = str(muestra.get(sel, "") or "")
-                                url_real = _primera_url(val_real)
-                                if url_real and _es_url(url_real):
-                                    st.image(url_real, width=160)
-                                st.markdown(
-                                    '<div class="campo-preview-vacio">⚠️ Campo no mapeado al CDN Turaco — añádelo a _CAMPO_A_INDICE</div>',
-                                    unsafe_allow_html=True)
-                        elif not es_imagen and sel != "(ninguno)":
-                            if sel not in muestra:
-                                st.markdown(
-                                    f'<div class="campo-preview-vacio">⚠️ "{sel}" no está en los datos descargados — usa modo Híbrido</div>',
-                                    unsafe_allow_html=True)
-                            else:
-                                val_real = str(muestra.get(sel, "") or "")
-                                # Avisar si se ha seleccionado un campo de imagen en un slot de texto
-                                if val_real and _es_url(val_real.split(" | ")[0].strip()):
-                                    st.markdown(
-                                        '<div class="campo-preview-vacio">⚠️ Este campo contiene una URL de imagen, no texto</div>',
-                                        unsafe_allow_html=True)
-                                elif val_real:
-                                    _prev_html(val_real)
-                                else:
-                                    st.markdown('<div class="campo-preview-vacio">↳ campo vacío en este producto</div>', unsafe_allow_html=True)
-                        else:
-                            st.markdown('<div class="campo-preview-vacio">↳ sin campo seleccionado</div>', unsafe_allow_html=True)
-
-                    elif modo == "banco":
-                        # Solo campos de imagen identificados automáticamente
-                        opc_banco = ["(ninguno)"] + cols_imagen
-                        val_actual = campos.get(clave, "(ninguno)")
-                        if val_actual not in opc_banco:
-                            val_actual = "(ninguno)"
-                        sel = st.selectbox("", opc_banco,
-                            index=opc_banco.index(val_actual),
-                            key=f"banco_{idx}_{clave}",
-                            label_visibility="collapsed")
-                        campos[clave]      = sel
-                        campos[clave_fija] = ""
-                        val_real = muestra.get(sel, "") if sel != "(ninguno)" else ""
-                        url_real = _primera_url(str(val_real)) if val_real else ""
-                        if url_real and _es_url(url_real):
-                            st.image(url_real, width=160)
-                        else:
-                            st.markdown('<div class="campo-preview-vacio">↳ sin imagen en la muestra</div>', unsafe_allow_html=True)
-
-                    else:  # fijo
-                        placeholder = "https://cdn.cecotec.com/img.jpg" if es_imagen else "Escribe el texto fijo..."
-                        fijo_actual = campos.get(clave_fija, "")
-                        fijo = st.text_area("", value=fijo_actual,
-                            placeholder=placeholder,
-                            height=72,
-                            key=f"fijo_{idx}_{clave}",
-                            label_visibility="collapsed")
-                        campos[clave_fija] = fijo
-                        campos[clave]      = ""
-                        url_fija = fijo.strip().split()[0] if fijo.strip() else ""
-                        if es_imagen and _es_url(url_fija):
-                            st.image(url_fija, width=160)
-                        elif fijo:
-                            _prev_html(fijo)
-
-                if tipo == "hero":
-                    c1, c2, c3 = st.columns(3)
-                    with c1: campo_selector("img",    "Imagen hero",    True)
-                    with c2: campo_selector("nombre", "Nombre producto", False)
-                    with c3: campo_selector("desc",   "Descripción",    False)
-
-                elif tipo == "text-photo":
-                    c1, c2 = st.columns(2)
-                    with c1: campo_selector("texto", "Texto (izquierda)", False)
-                    with c2: campo_selector("img",   "Foto (derecha)",   True)
-
-                elif tipo == "photo-text":
-                    c1, c2 = st.columns(2)
-                    with c1: campo_selector("img",   "Foto (izquierda)", True)
-                    with c2: campo_selector("texto", "Texto (derecha)",  False)
-
-                elif tipo == "photo-full":
-                    c1, c2 = st.columns(2)
-                    with c1: campo_selector("img",   "Foto (ancho completo)", True)
-                    with c2: campo_selector("extra", "Campo texto debajo",    False)
-
-        # Aplicar reorden / borrado
-        if to_delete is not None:
-            st.session_state["html_bloques"].pop(to_delete)
-            st.session_state.pop("zip_html_bytes", None)
-            st.rerun()
-        if to_move is not None:
-            b = st.session_state["html_bloques"]
-            b[to_move[0]], b[to_move[1]] = b[to_move[1]], b[to_move[0]]
-            st.session_state.pop("zip_html_bytes", None)
-            st.rerun()
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # Preview HTML con el primer producto
-        with st.expander("👁 Preview HTML — primer producto", expanded=False):
-            layout_actual = [{"tipo": b["tipo"], "campos": b["campos"]}
-                             for b in st.session_state["html_bloques"]]
-            fragmento = _generar_html_fila(muestra, layout_actual)
-            # Para el preview necesitamos el HTML completo con estructura de documento
-            html_preview = f"""<!DOCTYPE html><html lang="fr"><head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-</head><body style="background:#fff;padding:16px">{fragmento}</body></html>"""
-            st.components.v1.html(html_preview, height=700, scrolling=True)
-
-        # Generar HTMLs
-        st.markdown("<br>", unsafe_allow_html=True)
-        col_gen1, col_gen2 = st.columns(2)
-
-        with col_gen1:
-            if st.button("⚡ Generar todos los HTMLs (ZIP)", key="btn_html", use_container_width=True):
-                layout_final = [{"tipo": b["tipo"], "campos": b["campos"]}
-                                for b in st.session_state["html_bloques"]]
-                with st.spinner("Generando HTMLs..."):
-                    st.session_state["zip_html_bytes"] = generar_zip_html(df_resultado, layout_final)
-                    st.session_state["zip_html_count"] = len(df_resultado)
-                    # Generar también lista de (sku, html) para copiar individualmente
-                    st.session_state["htmls_individuales"] = [
-                        (str(fila.get("SKU","sin_sku")), _generar_html_fila(fila.to_dict(), layout_final))
-                        for _, fila in df_resultado.iterrows()
-                    ]
-
-        with col_gen2:
-            if st.button("📋 Copiar HTML — producto a producto", key="btn_copiar_modo", use_container_width=True):
-                layout_final = [{"tipo": b["tipo"], "campos": b["campos"]}
-                                for b in st.session_state["html_bloques"]]
-                with st.spinner("Generando HTMLs..."):
-                    st.session_state["htmls_individuales"] = [
-                        (str(fila.get("SKU","sin_sku")), _generar_html_fila(fila.to_dict(), layout_final))
-                        for _, fila in df_resultado.iterrows()
-                    ]
-                    st.session_state["zip_html_bytes"] = None  # no necesita ZIP
-
-    # ── ZIP descargable ───────────────────────────────────────
-    if st.session_state.get("zip_html_bytes"):
-        st.success(f"✅ {st.session_state['zip_html_count']} HTMLs listos")
         st.download_button(
-            label="⬇️ DESCARGAR ZIP (HTMLs Cdiscount)",
-            data=st.session_state["zip_html_bytes"],
-            file_name="html_cdiscount.zip",
-            mime="application/zip",
-            key="dl_html_zip"
+            label="⬇️ DESCARGAR XLSX",
+            data=buffer_xlsx,
+            file_name="reporte_plytix.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-
-    # ── Copiar HTML por producto ──────────────────────────────
-    if st.session_state.get("htmls_individuales"):
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("#### 📋 Copiar HTML por producto")
-        st.caption("Selecciona el producto, copia el código y pégalo directamente en Cdiscount.")
-
-        htmls = st.session_state["htmls_individuales"]
-        skus_lista = [sku for sku, _ in htmls]
-
-        sku_sel = st.selectbox(
-            "Producto:",
-            options=skus_lista,
-            key="sku_copiar_sel"
-        )
-
-        idx_sel = skus_lista.index(sku_sel)
-        html_sel = htmls[idx_sel][1]
-
-        # Mostrar el HTML en un text_area grande — el usuario selecciona todo y copia
-        st.text_area(
-            "Código HTML — selecciona todo (Ctrl+A / Cmd+A) y copia:",
-            value=html_sel,
-            height=320,
-            key="textarea_html_copia"
-        )
-
-        # Navegación rápida anterior/siguiente
-        nav1, nav2, nav3 = st.columns([1, 3, 1])
-        with nav1:
-            if idx_sel > 0:
-                if st.button("◀ Anterior", key="nav_prev", use_container_width=True):
-                    st.session_state["sku_copiar_sel"] = skus_lista[idx_sel - 1]
-                    st.rerun()
-        with nav2:
-            st.markdown(
-                f'<p style="text-align:center;color:#FAF9F5;font-size:.85rem;margin-top:8px">' +
-                f'{idx_sel + 1} / {len(htmls)}</p>',
-                unsafe_allow_html=True
-            )
-        with nav3:
-            if idx_sel < len(htmls) - 1:
-                if st.button("Siguiente ▶", key="nav_next", use_container_width=True):
-                    st.session_state["sku_copiar_sel"] = skus_lista[idx_sel + 1]
-                    st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
